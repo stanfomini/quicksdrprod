@@ -5007,16 +5007,16 @@
         },
         {
             "name": "stanfomini/quick-claimstaker",
-            "version": "v0.4.4",
+            "version": "v0.4.5",
             "source": {
                 "type": "git",
                 "url": "git@github.com:stanfomini/quick-claimstaker.git",
-                "reference": "51d3d2637252ec82ac2d547569a6cb033eb24d85"
+                "reference": "903c7fa6d49085ebee7a79b67e3743559d302e2f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stanfomini/quick-claimstaker/zipball/51d3d2637252ec82ac2d547569a6cb033eb24d85",
-                "reference": "51d3d2637252ec82ac2d547569a6cb033eb24d85",
+                "url": "https://api.github.com/repos/stanfomini/quick-claimstaker/zipball/903c7fa6d49085ebee7a79b67e3743559d302e2f",
+                "reference": "903c7fa6d49085ebee7a79b67e3743559d302e2f",
                 "shasum": ""
             },
             "require": {
@@ -5054,10 +5054,10 @@
             ],
             "description": "Power dialer, smart queue, RVM, and call intelligence for Laravel",
             "support": {
-                "source": "https://github.com/stanfomini/quick-claimstaker/tree/v0.4.4",
+                "source": "https://github.com/stanfomini/quick-claimstaker/tree/v0.4.5",
                 "issues": "https://github.com/stanfomini/quick-claimstaker/issues"
             },
-            "time": "2026-04-08T15:41:54+00:00"
+            "time": "2026-04-08T17:33:21+00:00"
         },
         {
             "name": "symfony/clock",

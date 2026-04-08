@@ -18,6 +18,9 @@
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
+    {{-- Claimstaker menu (auto-added by claimstaker:install) --}}
+    @include('claimstaker::partials.sidebar-links')
+
             </flux:sidebar.nav>
 
             <flux:spacer />

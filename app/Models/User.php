@@ -45,4 +45,12 @@ class User extends Authenticatable
             ->map(fn ($word) => Str::substr($word, 0, 1))
             ->implode('');
     }
+
+    /**
+     * Check if the user is an internal team member (for Claimstaker access).
+     */
+    public function isInternal(): bool
+    {
+        return ($this->type ?? null) === 'internal';
+    }
 }

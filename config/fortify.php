@@ -144,7 +144,7 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Features::registration(), // disabled — admin signup is via tokenized one-time link
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

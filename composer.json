@@ -15,7 +15,7 @@
     "laravel/tinker": "^3.0",
     "livewire/flux": "^2.12.0",
     "livewire/livewire": "^4.1",
-    "stanfomini/quick-claimstaker": "^0.4.2"
+    "stanfomini/quick-claimstaker": "^0.4.5"
   },
   "require-dev": {
     "fakerphp/faker": "^1.24",

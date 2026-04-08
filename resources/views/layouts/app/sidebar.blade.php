@@ -10,17 +10,9 @@
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
-            <livewire:team-switcher />
-
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
-    {{-- Claimstaker menu (auto-added by claimstaker:install) --}}
-    @include('claimstaker::partials.sidebar-links')
-
+                {{-- Claimstaker menu (auto-added by claimstaker:install) --}}
+                @include('claimstaker::partials.sidebar-links')
             </flux:sidebar.nav>
 
             <flux:spacer />

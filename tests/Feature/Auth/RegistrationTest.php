@@ -19,7 +19,7 @@ test('new users can register', function () {
     $user = User::where('email', 'test@example.com')->first();
 
     $response->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('claimstaker.dashboard', absolute: false));
 
     $this->assertAuthenticated();
 });

@@ -9,12 +9,6 @@
 
             <x-app-logo href="{{ route('dashboard') }}" wire:navigate />
 
-            <flux:navbar class="-mb-px max-lg:hidden">
-                <flux:navbar.item icon="layout-grid" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                    {{ __('Dashboard') }}
-                </flux:navbar.item>
-            </flux:navbar>
-
             <flux:spacer />
 
             <flux:navbar class="me-1.5 space-x-0.5 rtl:space-x-reverse py-0!">
@@ -41,11 +35,7 @@
                 </flux:tooltip>
             </flux:navbar>
 
-            <x-desktop-user-menu :showTeam="false" />
-
-            <div class="max-lg:hidden">
-                <livewire:team-switcher />
-            </div>
+            <x-desktop-user-menu />
         </flux:header>
 
         <!-- Mobile Menu -->
@@ -55,14 +45,8 @@
                 <flux:sidebar.collapse class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
             </flux:sidebar.header>
 
-            <livewire:team-switcher />
-
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')">
-                    <flux:sidebar.item icon="layout-grid" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard')  }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
+                @include('claimstaker::partials.sidebar-links')
             </flux:sidebar.nav>
 
             <flux:spacer />

@@ -15,7 +15,7 @@
     "laravel/tinker": "^3.0",
     "livewire/flux": "^2.12.0",
     "livewire/livewire": "^4.1",
-    "stanfomini/quick-claimstaker": "^0.4.6"
+    "stanfomini/quick-claimstaker": "dev-multiline"
   },
   "require-dev": {
     "fakerphp/faker": "^1.24",
@@ -101,7 +101,7 @@
       "php-http/discovery": true
     }
   },
-  "minimum-stability": "stable",
+  "minimum-stability": "dev",
   "prefer-stable": true,
   "repositories": [
     {

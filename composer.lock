@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6dbd4edf919d8d4a52adf77757fab56c",
+    "content-hash": "ee3bd37f9d9040fa64ddebbf7d972c93",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -5007,16 +5007,16 @@
         },
         {
             "name": "stanfomini/quick-claimstaker",
-            "version": "v0.4.6",
+            "version": "dev-multiline",
             "source": {
                 "type": "git",
                 "url": "git@github.com:stanfomini/quick-claimstaker.git",
-                "reference": "09d33fdd12f4a64f67e0bc20c6adb3e54c60001c"
+                "reference": "3d39ae2b3d474bbfc147824a6de469fce83cd7eb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stanfomini/quick-claimstaker/zipball/09d33fdd12f4a64f67e0bc20c6adb3e54c60001c",
-                "reference": "09d33fdd12f4a64f67e0bc20c6adb3e54c60001c",
+                "url": "https://api.github.com/repos/stanfomini/quick-claimstaker/zipball/3d39ae2b3d474bbfc147824a6de469fce83cd7eb",
+                "reference": "3d39ae2b3d474bbfc147824a6de469fce83cd7eb",
                 "shasum": ""
             },
             "require": {
@@ -5054,10 +5054,10 @@
             ],
             "description": "Power dialer, smart queue, RVM, and call intelligence for Laravel",
             "support": {
-                "source": "https://github.com/stanfomini/quick-claimstaker/tree/v0.4.6",
+                "source": "https://github.com/stanfomini/quick-claimstaker/tree/multiline",
                 "issues": "https://github.com/stanfomini/quick-claimstaker/issues"
             },
-            "time": "2026-04-09T20:35:23+00:00"
+            "time": "2026-04-10T04:35:17+00:00"
         },
         {
             "name": "symfony/clock",
@@ -11159,8 +11159,10 @@
         }
     ],
     "aliases": [],
-    "minimum-stability": "stable",
-    "stability-flags": {},
+    "minimum-stability": "dev",
+    "stability-flags": {
+        "stanfomini/quick-claimstaker": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

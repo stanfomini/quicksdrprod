@@ -8,13 +8,14 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
+    "@twilio/voice-sdk": "^2.18.1",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.0.1",
-    "laravel-vite-plugin": "^3.0.0",
-    "tailwindcss": "^4.0.7",
-    "vite": "^8.0.0",
     "laravel-echo": "^2.3.0",
-    "pusher-js": "^8.4.0"
+    "laravel-vite-plugin": "^3.0.0",
+    "pusher-js": "^8.4.0",
+    "tailwindcss": "^4.0.7",
+    "vite": "^8.0.0"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "4.9.5",

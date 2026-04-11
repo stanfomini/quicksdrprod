@@ -5011,12 +5011,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:stanfomini/quick-claimstaker.git",
-                "reference": "6c8bb5baadb8bb85cd5fbce054cc494622451dfe"
+                "reference": "8420edf2f50f3193844b91462d29ccefdee50d63"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stanfomini/quick-claimstaker/zipball/6c8bb5baadb8bb85cd5fbce054cc494622451dfe",
-                "reference": "6c8bb5baadb8bb85cd5fbce054cc494622451dfe",
+                "url": "https://api.github.com/repos/stanfomini/quick-claimstaker/zipball/8420edf2f50f3193844b91462d29ccefdee50d63",
+                "reference": "8420edf2f50f3193844b91462d29ccefdee50d63",
                 "shasum": ""
             },
             "require": {
@@ -5057,7 +5057,7 @@
                 "source": "https://github.com/stanfomini/quick-claimstaker/tree/multiline",
                 "issues": "https://github.com/stanfomini/quick-claimstaker/issues"
             },
-            "time": "2026-04-10T13:00:11+00:00"
+            "time": "2026-04-11T03:09:42+00:00"
         },
         {
             "name": "symfony/clock",

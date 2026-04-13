@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Stanfomini\QuickClaimstaker\Models\Agent;
+use Stanfomini\QuickClaimstaker\Models\Company;
 
 class AdminSignupController extends Controller
 {
@@ -57,8 +58,15 @@ class AdminSignupController extends Controller
 
         // Create Agent record if the invite specified a role
         if ($tokenRecord->role) {
+            // Determine the primary company — use the first from the invite,
+            // or fall back to the first active company in the system.
+            $primaryCompanyId = ! empty($tokenRecord->company_ids)
+                ? $tokenRecord->company_ids[0]
+                : Company::first()?->id;
+
             $agent = Agent::create([
                 'user_id' => $user->id,
+                'company_id' => $primaryCompanyId,
                 'role' => $tokenRecord->role,
                 'is_active' => true,
                 'status' => 'offline',
@@ -66,7 +74,6 @@ class AdminSignupController extends Controller
 
             if (! empty($tokenRecord->company_ids)) {
                 $agent->companies()->sync($tokenRecord->company_ids);
-                $agent->update(['company_id' => $tokenRecord->company_ids[0]]);
             }
         }
 

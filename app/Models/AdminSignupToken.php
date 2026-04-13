@@ -10,6 +10,8 @@ class AdminSignupToken extends Model
     protected $fillable = [
         'token',
         'email_hint',
+        'role',
+        'company_ids',
         'expires_at',
         'used_at',
     ];
@@ -19,6 +21,7 @@ class AdminSignupToken extends Model
         return [
             'expires_at' => 'datetime',
             'used_at' => 'datetime',
+            'company_ids' => 'array',
         ];
     }
 
@@ -30,11 +33,13 @@ class AdminSignupToken extends Model
     /**
      * Generate a fresh single-use admin signup token.
      */
-    public static function generate(?string $emailHint = null, int $expiresInHours = 72): self
+    public static function generate(?string $emailHint = null, int $expiresInHours = 72, ?string $role = null, ?array $companyIds = null): self
     {
         return self::create([
             'token' => bin2hex(random_bytes(32)),
             'email_hint' => $emailHint,
+            'role' => $role,
+            'company_ids' => $companyIds,
             'expires_at' => now()->addHours($expiresInHours),
         ]);
     }

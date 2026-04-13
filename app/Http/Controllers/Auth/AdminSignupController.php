@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
+use Stanfomini\QuickClaimstaker\Models\Agent;
 
 class AdminSignupController extends Controller
 {
@@ -40,7 +41,10 @@ class AdminSignupController extends Controller
             'password' => ['required', 'string', 'confirmed', Password::defaults()],
         ]);
 
-        if (! AdminSignupToken::claim($token)) {
+        // Load the token BEFORE claiming so we can read role/company_ids
+        $tokenRecord = AdminSignupToken::valid()->where('token', $token)->first();
+
+        if (! $tokenRecord || ! AdminSignupToken::claim($token)) {
             abort(410, 'This signup link is invalid, expired, or already used.');
         }
 
@@ -50,6 +54,21 @@ class AdminSignupController extends Controller
             'password' => $validated['password'],
         ]);
         $user->forceFill(['type' => 'internal'])->save();
+
+        // Create Agent record if the invite specified a role
+        if ($tokenRecord->role) {
+            $agent = Agent::create([
+                'user_id' => $user->id,
+                'role' => $tokenRecord->role,
+                'is_active' => true,
+                'status' => 'offline',
+            ]);
+
+            if (! empty($tokenRecord->company_ids)) {
+                $agent->companies()->sync($tokenRecord->company_ids);
+                $agent->update(['company_id' => $tokenRecord->company_ids[0]]);
+            }
+        }
 
         Auth::login($user);
 

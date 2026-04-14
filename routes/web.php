@@ -3,7 +3,10 @@
 use App\Http\Controllers\Auth\AdminSignupController;
 use App\Http\Controllers\SignupSuccessController;
 use App\Http\Controllers\StripeWebhookController;
+use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureOrchestrator;
+use App\Livewire\Admin\Tenants\Index as AdminTenantsIndex;
+use App\Livewire\Admin\Tenants\Show as AdminTenantsShow;
 use App\Livewire\Signup;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
@@ -29,3 +32,11 @@ Route::middleware([EnsureOrchestrator::class])->group(function () {
         ->name('stripe.webhook')
         ->withoutMiddleware([VerifyCsrfToken::class]);
 });
+
+Route::middleware([EnsureOrchestrator::class, 'auth', EnsureInternalUser::class])
+    ->prefix('admin/tenants')
+    ->name('admin.tenants.')
+    ->group(function () {
+        Route::get('/', AdminTenantsIndex::class)->name('index');
+        Route::get('/{tenant}', AdminTenantsShow::class)->name('show');
+    });

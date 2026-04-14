@@ -13,6 +13,7 @@
             <flux:sidebar.nav>
                 {{-- Claimstaker menu (auto-added by claimstaker:install) --}}
                 @include('claimstaker::partials.sidebar-links')
+                @include('partials.admin-sidebar-links')
             </flux:sidebar.nav>
 
             <flux:spacer />

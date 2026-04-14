@@ -1,0 +1,602 @@
+<?php
+
+namespace App\Services\Provisioning;
+
+use App\Enums\TenantStatus;
+use App\Models\Tenant;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use RuntimeException;
+
+/**
+ * End-to-end tenant server provisioner.
+ *
+ * Each public method represents one step of the 22-step pipeline (see plan
+ * at /home/forge/.claude/plans/compressed-skipping-shannon.md). Every step
+ * is idempotent: it checks whether its artifact already exists (via GET)
+ * before creating, so a failed provision can be re-dispatched and will
+ * skip completed steps.
+ *
+ * The orchestrating job (App\Jobs\ProvisionTenantServer) calls these in
+ * order and handles the polling steps (createServer, SSL, recipes) by
+ * re-queueing itself.
+ */
+class TenantProvisioner
+{
+    public function __construct(
+        private ForgeClient $forge,
+        private CloudflareClient $cloudflare,
+    ) {}
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 1-2: validate and reserve the Tenant row
+    // ─────────────────────────────────────────────────────────────
+
+    public function validateAndReserve(Tenant $tenant): void
+    {
+        $subdomain = Str::lower($tenant->subdomain);
+
+        if (! preg_match('/^[a-z0-9][a-z0-9-]{1,39}$/', $subdomain)) {
+            throw new RuntimeException("Invalid subdomain: {$subdomain}");
+        }
+
+        if (Tenant::isReservedSubdomain($subdomain)) {
+            throw new RuntimeException("Reserved subdomain: {$subdomain}");
+        }
+
+        // Uniqueness was enforced at DB level, but double-check in case of
+        // concurrent signups racing.
+        $other = Tenant::where('subdomain', $subdomain)->where('id', '!=', $tenant->id)->first();
+        if ($other) {
+            throw new RuntimeException("Subdomain already taken: {$subdomain}");
+        }
+
+        // Generate all the secrets we'll need downstream. Doing it here
+        // (once) means retries reuse the same values — tenants don't get
+        // multiple APP_KEYs if we crash mid-pipeline.
+        if (! $tenant->app_key) {
+            $tenant->app_key = 'base64:'.base64_encode(random_bytes(32));
+        }
+        if (! $tenant->reverb_app_id) {
+            $tenant->reverb_app_id = (string) random_int(100000, 999999);
+        }
+        if (! $tenant->reverb_app_key) {
+            $tenant->reverb_app_key = Str::random(32);
+        }
+        if (! $tenant->reverb_app_secret) {
+            $tenant->reverb_app_secret = Str::random(40);
+        }
+        if (! $tenant->stats_hmac_key) {
+            $tenant->stats_hmac_key = bin2hex(random_bytes(32));
+        }
+        if (! $tenant->db_password) {
+            $tenant->db_password = Str::random(24);
+        }
+
+        $tenant->status = TenantStatus::Provisioning;
+        $tenant->recordStep(2, 'reserved + secrets generated');
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 3: Forge createServer — async, caller polls
+    // ─────────────────────────────────────────────────────────────
+
+    public function ensureServer(Tenant $tenant): void
+    {
+        if ($tenant->forge_server_id && $this->forge->serverIsReady($tenant->forge_server_id)) {
+            // Already ready — capture IP if missing and move on.
+            $server = $this->forge->getServer($tenant->forge_server_id);
+            if (! $tenant->server_ip) {
+                $tenant->server_ip = $server->ipAddress;
+                $tenant->save();
+            }
+            $tenant->recordStep(3, 'server already ready', ['server_id' => $tenant->forge_server_id]);
+
+            return;
+        }
+
+        if ($tenant->forge_server_id) {
+            // Server exists but not yet ready — caller (job) should re-queue.
+            $tenant->recordStep(3, 'server provisioning in progress — will poll');
+
+            return;
+        }
+
+        // Fresh create.
+        $server = $this->forge->createServer(
+            name: "qsdr-{$tenant->subdomain}",
+            options: [
+                'size' => $tenant->tier->serverSize(),
+            ],
+        );
+
+        $tenant->forge_server_id = $server->id;
+        $tenant->server_ip = $server->ipAddress;
+        $tenant->recordStep(3, 'server created, waiting for provisioning', [
+            'server_id' => $server->id,
+            'size' => $tenant->tier->serverSize(),
+        ]);
+    }
+
+    public function serverIsReady(Tenant $tenant): bool
+    {
+        if (! $tenant->forge_server_id) {
+            return false;
+        }
+
+        $ready = $this->forge->serverIsReady($tenant->forge_server_id);
+
+        if ($ready && ! $tenant->server_ip) {
+            $server = $this->forge->getServer($tenant->forge_server_id);
+            $tenant->server_ip = $server->ipAddress;
+            $tenant->save();
+        }
+
+        return $ready;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 4: Cloudflare DNS
+    // ─────────────────────────────────────────────────────────────
+
+    public function ensureDnsRecords(Tenant $tenant): void
+    {
+        if (! $tenant->server_ip) {
+            throw new RuntimeException('Cannot create DNS records without server IP');
+        }
+
+        $mainId = $this->cloudflare->upsertARecord($tenant->primaryHost(), $tenant->server_ip);
+        $wsId = $this->cloudflare->upsertARecord($tenant->websocketHost(), $tenant->server_ip);
+
+        $tenant->cloudflare_record_id = $mainId;
+        $tenant->cloudflare_ws_record_id = $wsId;
+        $tenant->recordStep(4, 'DNS records upserted', [
+            'main' => $mainId,
+            'ws' => $wsId,
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 5: primary site
+    // ─────────────────────────────────────────────────────────────
+
+    public function ensurePrimarySite(Tenant $tenant): void
+    {
+        if (! $tenant->forge_server_id) {
+            throw new RuntimeException('No server for primary site');
+        }
+
+        $domain = $tenant->primaryHost();
+        $site = $this->forge->findSiteByDomain($tenant->forge_server_id, $domain);
+
+        if ($site === null) {
+            $site = $this->forge->createSite(
+                $tenant->forge_server_id,
+                $domain,
+                ['project_type' => 'php', 'directory' => '/public'],
+            );
+        }
+
+        $tenant->forge_site_id = $site->id;
+        $tenant->recordStep(5, 'primary site ensured', ['site_id' => $site->id, 'domain' => $domain]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 6: git repo
+    // ─────────────────────────────────────────────────────────────
+
+    public function ensureGitRepo(Tenant $tenant, string $repo = 'stanfomini/quicksdrsaaspull', string $branch = 'main'): void
+    {
+        if (! $tenant->forge_server_id || ! $tenant->forge_site_id) {
+            throw new RuntimeException('No server/site for git install');
+        }
+
+        // Forge's API will 4xx if a repo is already installed. Check first.
+        $site = $this->forge->sdk()->site($tenant->forge_server_id, $tenant->forge_site_id);
+        if ($site->repository) {
+            $tenant->recordStep(6, 'git repo already installed', ['repo' => $site->repository]);
+
+            return;
+        }
+
+        $this->forge->installGitRepository($tenant->forge_server_id, $tenant->forge_site_id, $repo, $branch);
+        $tenant->recordStep(6, 'git repo installed', ['repo' => $repo, 'branch' => $branch]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 7: database
+    // ─────────────────────────────────────────────────────────────
+
+    public function ensureDatabase(Tenant $tenant): void
+    {
+        if (! $tenant->forge_server_id) {
+            throw new RuntimeException('No server for database');
+        }
+
+        $dbName = "tenant_{$tenant->subdomain}";
+        $existing = $this->forge->findDatabaseByName($tenant->forge_server_id, $dbName);
+
+        if ($existing) {
+            $tenant->forge_database_id = $existing->id;
+            $tenant->recordStep(7, 'database already exists', ['db_id' => $existing->id, 'name' => $dbName]);
+
+            return;
+        }
+
+        $db = $this->forge->createDatabase(
+            $tenant->forge_server_id,
+            $dbName,
+            "tenant_{$tenant->subdomain}",
+            $tenant->db_password,
+        );
+
+        $tenant->forge_database_id = $db->id;
+        $tenant->recordStep(7, 'database created', ['db_id' => $db->id, 'name' => $dbName]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 8: env file
+    // ─────────────────────────────────────────────────────────────
+
+    public function writeEnvFile(Tenant $tenant): void
+    {
+        if (! $tenant->forge_server_id || ! $tenant->forge_site_id) {
+            throw new RuntimeException('No server/site for env write');
+        }
+
+        $env = $this->buildEnvFileContents($tenant);
+        $this->forge->updateSiteEnvironment($tenant->forge_server_id, $tenant->forge_site_id, $env);
+        $tenant->recordStep(8, 'env file written');
+    }
+
+    private function buildEnvFileContents(Tenant $tenant): string
+    {
+        $lines = [
+            'APP_NAME="QuickSDR"',
+            'APP_ENV=production',
+            'APP_KEY='.$tenant->app_key,
+            'APP_DEBUG=false',
+            'APP_URL='.$tenant->appUrl(),
+            'APP_MODE=tenant',
+            'ORCHESTRATOR_URL='.rtrim(config('app.url', 'https://quicksdr.com'), '/'),
+            'STATS_HMAC_KEY='.$tenant->stats_hmac_key,
+            '',
+            'LOG_CHANNEL=stack',
+            'LOG_LEVEL=info',
+            '',
+            'DB_CONNECTION=pgsql',
+            'DB_HOST=127.0.0.1',
+            'DB_PORT=5432',
+            'DB_DATABASE=tenant_'.$tenant->subdomain,
+            'DB_USERNAME=tenant_'.$tenant->subdomain,
+            'DB_PASSWORD='.$tenant->db_password,
+            '',
+            'BROADCAST_CONNECTION=reverb',
+            'QUEUE_CONNECTION=database',
+            'CACHE_STORE=database',
+            'SESSION_DRIVER=database',
+            'SESSION_LIFETIME=120',
+            '',
+            'REVERB_APP_ID='.$tenant->reverb_app_id,
+            'REVERB_APP_KEY='.$tenant->reverb_app_key,
+            'REVERB_APP_SECRET='.$tenant->reverb_app_secret,
+            'REVERB_HOST='.$tenant->websocketHost(),
+            'REVERB_PORT=443',
+            'REVERB_SCHEME=https',
+            'REVERB_SERVER_PORT=8080',
+            '',
+            'VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"',
+            'VITE_REVERB_HOST="${REVERB_HOST}"',
+            'VITE_REVERB_PORT="${REVERB_PORT}"',
+            'VITE_REVERB_SCHEME="${REVERB_SCHEME}"',
+            '',
+            '# Tenant fills these in from /claimstaker/settings after first login:',
+            '# TWILIO_ACCOUNT_SID=',
+            '# TWILIO_AUTH_TOKEN=',
+            '# XAI_API_KEY= (or other AI provider)',
+            '',
+            'MAIL_MAILER=log',
+            'MAIL_FROM_ADDRESS="hello@'.$tenant->primaryHost().'"',
+            'MAIL_FROM_NAME="${APP_NAME}"',
+            '',
+            'PYTHON_ENABLED=true',
+            'PYTHON_URL=http://127.0.0.1:8100',
+            'PYTHON_TIMEOUT=60',
+        ];
+
+        return implode("\n", $lines)."\n";
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 9-10: SSL
+    // ─────────────────────────────────────────────────────────────
+
+    public function requestPrimarySsl(Tenant $tenant): void
+    {
+        if ($this->forge->activeCertificateExists($tenant->forge_server_id, $tenant->forge_site_id)) {
+            $tenant->recordStep(9, 'primary SSL already active');
+
+            return;
+        }
+
+        $this->forge->obtainLetsEncryptCertificate(
+            $tenant->forge_server_id,
+            $tenant->forge_site_id,
+            [$tenant->primaryHost()],
+        );
+        $tenant->recordStep(9, 'primary SSL requested');
+    }
+
+    public function ensureWebsocketSite(Tenant $tenant): void
+    {
+        if (! $tenant->forge_server_id) {
+            throw new RuntimeException('No server for ws site');
+        }
+
+        $wsDomain = $tenant->websocketHost();
+        $site = $this->forge->findSiteByDomain($tenant->forge_server_id, $wsDomain);
+
+        if ($site === null) {
+            $site = $this->forge->createSite(
+                $tenant->forge_server_id,
+                $wsDomain,
+                ['project_type' => 'php', 'directory' => '/public'],
+            );
+        }
+
+        $tenant->forge_ws_site_id = $site->id;
+
+        if (! $this->forge->activeCertificateExists($tenant->forge_server_id, $site->id)) {
+            $this->forge->obtainLetsEncryptCertificate(
+                $tenant->forge_server_id,
+                $site->id,
+                [$wsDomain],
+            );
+        }
+
+        $tenant->recordStep(10, 'ws site + SSL ensured', ['ws_site_id' => $site->id]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 11: deploy script + deploy
+    // ─────────────────────────────────────────────────────────────
+
+    public function ensureDeployScript(Tenant $tenant): void
+    {
+        $script = <<<'BASH'
+        cd $FORGE_SITE_PATH
+
+        git pull origin $FORGE_SITE_BRANCH
+
+        $FORGE_COMPOSER install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+        ( flock -w 10 9 || exit 1
+            echo 'Restarting FPM...'; sudo -S service $FORGE_PHP_FPM reload ) 9>/tmp/fpmlock
+
+        if [ -f artisan ]; then
+            $FORGE_PHP artisan migrate --force
+            $FORGE_PHP artisan config:cache
+            $FORGE_PHP artisan route:cache
+            $FORGE_PHP artisan view:cache
+
+            if [ -f package.json ]; then
+                npm ci
+                npm run build
+            fi
+        fi
+        BASH;
+
+        $this->forge->updateDeployScript($tenant->forge_server_id, $tenant->forge_site_id, $script);
+        $this->forge->deploySite($tenant->forge_server_id, $tenant->forge_site_id);
+        $tenant->recordStep(11, 'deploy script set + site deployed');
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Steps 12-13: daemons
+    // ─────────────────────────────────────────────────────────────
+
+    public function ensureDaemons(Tenant $tenant): void
+    {
+        $sitePath = "/home/forge/{$tenant->primaryHost()}/current";
+
+        // Queue worker
+        $queueCmd = "php {$sitePath}/artisan queue:work --queue=default --timeout=120 --sleep=10 --tries=3";
+        if (! $this->forge->findDaemonByCommand($tenant->forge_server_id, 'queue:work')) {
+            $this->forge->createDaemon($tenant->forge_server_id, $queueCmd, 'forge', $sitePath);
+        }
+
+        // Reverb
+        $reverbCmd = "php {$sitePath}/artisan reverb:start --no-interaction --port=8080";
+        if (! $this->forge->findDaemonByCommand($tenant->forge_server_id, 'reverb:start')) {
+            $this->forge->createDaemon($tenant->forge_server_id, $reverbCmd, 'forge', $sitePath);
+        }
+
+        $tenant->recordStep(13, 'queue + Reverb daemons ensured');
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Steps 14-15: recipes (Python + Reverb nginx/ssl systemd)
+    // ─────────────────────────────────────────────────────────────
+
+    public function ensureRecipe(string $name, string $script): int
+    {
+        $existing = $this->forge->findRecipeByName($name);
+        if ($existing) {
+            return $existing->id;
+        }
+
+        $recipe = $this->forge->createRecipe($name, $script);
+
+        return $recipe->id;
+    }
+
+    public function runPythonRecipe(Tenant $tenant): void
+    {
+        $script = file_get_contents(base_path('vendor/stanfomini/quick-claimstaker/forge-recipes/install-python.sh'));
+        $recipeId = $this->ensureRecipe('claimstaker-install-python', $script);
+        $this->forge->runRecipe($recipeId, [$tenant->forge_server_id]);
+
+        // Python daemon
+        $pythonDaemon = '/home/forge/claimstaker-python/venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8100';
+        if (! $this->forge->findDaemonByCommand($tenant->forge_server_id, 'uvicorn api.main')) {
+            $this->forge->createDaemon(
+                $tenant->forge_server_id,
+                $pythonDaemon,
+                'forge',
+                '/home/forge/claimstaker-python',
+            );
+        }
+
+        $tenant->recordStep(14, 'Python recipe kicked + daemon ensured');
+    }
+
+    public function runReverbRecipe(Tenant $tenant): void
+    {
+        $script = file_get_contents(base_path('vendor/stanfomini/quick-claimstaker/forge-recipes/setup-reverb.sh'));
+        $recipeId = $this->ensureRecipe('claimstaker-setup-reverb', $script);
+        $this->forge->runRecipe($recipeId, [$tenant->forge_server_id]);
+        $tenant->recordStep(15, 'Reverb recipe kicked');
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 16: scheduler
+    // ─────────────────────────────────────────────────────────────
+
+    public function enableScheduler(Tenant $tenant): void
+    {
+        $sitePath = "/home/forge/{$tenant->primaryHost()}/current";
+        $this->forge->enableScheduler(
+            $tenant->forge_server_id,
+            "php {$sitePath}/artisan schedule:run",
+        );
+        $tenant->recordStep(16, 'scheduler enabled');
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 17: seed admin (via SSH recipe)
+    // ─────────────────────────────────────────────────────────────
+
+    public function seedAdmin(Tenant $tenant): void
+    {
+        // Use a one-shot recipe to exec the artisan command on the tenant
+        // server. The command prints the tokenized URL to stdout, which
+        // Forge captures in the recipe output. We fetch it back from the
+        // recipe execution record.
+        $sitePath = "/home/forge/{$tenant->primaryHost()}/current";
+        $script = <<<BASH
+        cd {$sitePath}
+        sudo -u forge php artisan claimstaker:invite-admin --email={$tenant->admin_email} --name="{$tenant->admin_name}" --no-interaction
+        BASH;
+
+        $recipeName = "tenant-admin-invite-{$tenant->subdomain}-".time();
+        $recipeId = $this->ensureRecipe($recipeName, $script);
+        $this->forge->runRecipe($recipeId, [$tenant->forge_server_id]);
+
+        // The admin_signup_url will be populated by the claimstaker package
+        // via a webhook back to quicksdr.com — OR we parse the recipe output
+        // after it completes (see ProvisionTenantServer job). For now, set
+        // a placeholder; the job will overwrite.
+        $tenant->recordStep(17, 'admin invite recipe kicked', ['recipe_id' => $recipeId]);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 18: credentials email (dispatched as queued Mailable by the job)
+    // ─────────────────────────────────────────────────────────────
+
+    // ─────────────────────────────────────────────────────────────
+    // Step 19: PartnerStack conversion
+    // ─────────────────────────────────────────────────────────────
+
+    public function notifyPartnerstack(Tenant $tenant): void
+    {
+        if (! $tenant->partnerstack_partner_key) {
+            $tenant->recordStep(19, 'no PartnerStack key — skipped');
+
+            return;
+        }
+
+        $token = config('services.partnerstack.token');
+        if (! $token) {
+            Log::warning('PartnerStack token not configured; skipping conversion post', [
+                'tenant_id' => $tenant->id,
+            ]);
+            $tenant->recordStep(19, 'PartnerStack token missing — skipped');
+
+            return;
+        }
+
+        $amountCents = $tenant->tier->monthlyPriceCents() + $tenant->tier->setupFeeCents();
+
+        $response = Http::withToken($token)
+            ->acceptJson()
+            ->asJson()
+            ->timeout(10)
+            ->post('https://api.partnerstack.com/v2/conversions', [
+                'partner_key' => $tenant->partnerstack_partner_key,
+                'customer_key' => (string) $tenant->id,
+                'external_key' => (string) $tenant->id,
+                'amount' => $amountCents / 100,
+                'currency' => 'USD',
+                'type' => 'subscription',
+            ]);
+
+        if ($response->successful()) {
+            $tenant->recordStep(19, 'PartnerStack conversion posted');
+        } else {
+            Log::warning('PartnerStack conversion failed', [
+                'tenant_id' => $tenant->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            $tenant->recordStep(19, "PartnerStack returned {$response->status()}");
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Steps 20-22: broadcast, mark ready, health check
+    // ─────────────────────────────────────────────────────────────
+
+    public function markReady(Tenant $tenant): void
+    {
+        $tenant->status = TenantStatus::Ready;
+        $tenant->provisioned_at = now();
+        $tenant->recordStep(21, 'ready');
+    }
+
+    /**
+     * Destroy the tenant's Forge server + DNS records. Invoked from
+     * DestroyTenantServer job after the 7-day export-only grace period.
+     */
+    public function destroy(Tenant $tenant): void
+    {
+        if ($tenant->forge_server_id) {
+            try {
+                $this->forge->destroyServer($tenant->forge_server_id);
+            } catch (\Throwable $e) {
+                Log::warning('Forge destroyServer failed (continuing)', [
+                    'tenant_id' => $tenant->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        foreach ([$tenant->cloudflare_record_id, $tenant->cloudflare_ws_record_id] as $recordId) {
+            if ($recordId) {
+                try {
+                    $this->cloudflare->deleteRecord($recordId);
+                } catch (\Throwable $e) {
+                    Log::warning('Cloudflare deleteRecord failed (continuing)', [
+                        'tenant_id' => $tenant->id,
+                        'record_id' => $recordId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        $tenant->status = TenantStatus::Destroyed;
+        $tenant->destroyed_at = now();
+        $tenant->recordStep(99, 'destroyed');
+    }
+}

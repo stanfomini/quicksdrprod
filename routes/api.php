@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\StatsIngestController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware(['orchestrator'])->group(function () {
-    // Stats ingest route is wired up by stats-ingest-builder
+    Route::post('/stats/ingest', [StatsIngestController::class, 'store'])
+        ->name('api.stats.ingest');
+
     // Signup status polling is wired up by signup-builder
 });

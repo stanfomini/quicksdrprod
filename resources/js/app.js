@@ -4,6 +4,9 @@ import './bootstrap';
 // Vite resolves these at build time after `composer install` has populated vendor/.
 import DialerSession from '../../vendor/stanfomini/quick-claimstaker/resources/js/dialer-session.js';
 import SoftphoneManager from '../../vendor/stanfomini/quick-claimstaker/resources/js/softphone.js';
+// Side-effect import: registers window.openScaledWindow helper used by
+// dialer click handlers (resources, booking links, linkified scripts).
+import '../../vendor/stanfomini/quick-claimstaker/resources/js/scaled-window.js';
 
 // Expose as globals so Livewire/Alpine components in the package's blade views
 // can reference `new window.DialerSession(...)` and `new window.SoftphoneManager()`.

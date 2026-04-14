@@ -30,6 +30,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Mode
+    |--------------------------------------------------------------------------
+    |
+    | Determines whether this install acts as the SaaS orchestrator
+    | (quicksdr.com, which provisions new tenant servers) or a plain
+    | tenant instance. Orchestrator-only routes and middleware check this.
+    |
+    | Values: 'orchestrator' | 'tenant'
+    */
+
+    'mode' => env('APP_MODE', 'tenant'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Debug Mode
     |--------------------------------------------------------------------------
     |

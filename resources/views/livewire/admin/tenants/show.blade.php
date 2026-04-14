@@ -1,0 +1,180 @@
+<div
+    class="flex flex-col gap-6 p-6"
+    x-data="{
+        copy(text) {
+            if (!text) return;
+            navigator.clipboard.writeText(text);
+        },
+    }"
+    @copy-to-clipboard.window="copy($event.detail.text)"
+    @toast.window="window.dispatchEvent(new CustomEvent('flux-toast', { detail: $event.detail }))"
+    x-init="
+        if (typeof window.Echo !== 'undefined') {
+            window.Echo.private('admin.tenants')
+                .listen('.tenant.ready', (e) => { if (e.tenant_id === {{ $tenant->id }}) $wire.$refresh(); })
+                .listen('.tenant.status-changed', (e) => { if (e.tenant_id === {{ $tenant->id }}) $wire.$refresh(); });
+        }
+    "
+>
+    <div class="flex items-center justify-between gap-4">
+        <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+                <flux:heading size="xl">{{ $tenant->subdomain }}.quicksdr.com</flux:heading>
+                <flux:badge size="sm" color="zinc">{{ $tenant->tier->label() }}</flux:badge>
+                <flux:badge size="sm" :color="$tenant->status->color()">{{ $tenant->status->label() }}</flux:badge>
+            </div>
+            <flux:text class="text-zinc-500">{{ $tenant->business_name }}</flux:text>
+        </div>
+        <flux:button variant="ghost" icon="arrow-left" :href="route('admin.tenants.index')" wire:navigate>Back</flux:button>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+        @if ($tenant->status === \App\Enums\TenantStatus::Failed)
+            <flux:button wire:click="retryProvisioning" variant="primary" icon="arrow-path">Retry provisioning</flux:button>
+        @endif
+
+        <flux:modal.trigger name="destroy-tenant">
+            <flux:button variant="danger" icon="trash">Destroy server</flux:button>
+        </flux:modal.trigger>
+
+        @if ($tenant->admin_signup_url)
+            <flux:button wire:click="copySignupUrl" variant="ghost" icon="clipboard">Copy admin signup URL</flux:button>
+        @endif
+
+        @if ($tenant->status === \App\Enums\TenantStatus::Ready)
+            <flux:button variant="ghost" icon="arrow-top-right-on-square" :href="$tenant->appUrl()" target="_blank">Open tenant</flux:button>
+        @endif
+    </div>
+
+    <flux:modal name="destroy-tenant" class="md:w-96">
+        <div class="flex flex-col gap-4">
+            <flux:heading size="lg">Destroy {{ $tenant->subdomain }}?</flux:heading>
+            <flux:text>This will dispatch the destroy job which tears down the Forge server, DNS records, and Stripe subscription. Final snapshot is taken first.</flux:text>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button variant="danger" wire:click="destroyServer">Destroy</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {{-- Left: tenant info --}}
+        <flux:card class="flex flex-col gap-4">
+            <flux:heading size="lg">Tenant info</flux:heading>
+            <dl class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+                <dt class="text-zinc-500">Business</dt>
+                <dd class="sm:col-span-2">{{ $tenant->business_name }}</dd>
+
+                <dt class="text-zinc-500">Admin</dt>
+                <dd class="sm:col-span-2">{{ $tenant->admin_name }}</dd>
+
+                <dt class="text-zinc-500">Email</dt>
+                <dd class="sm:col-span-2">{{ $tenant->admin_email }}</dd>
+
+                <dt class="text-zinc-500">Phone</dt>
+                <dd class="sm:col-span-2">{{ $tenant->admin_phone ?? '—' }}</dd>
+
+                <dt class="text-zinc-500">Website</dt>
+                <dd class="sm:col-span-2">
+                    @if ($tenant->company_website)
+                        <a href="{{ $tenant->company_website }}" target="_blank" class="text-blue-600 hover:underline dark:text-blue-400">{{ $tenant->company_website }}</a>
+                    @else
+                        —
+                    @endif
+                </dd>
+
+                <dt class="text-zinc-500">Role</dt>
+                <dd class="sm:col-span-2">{{ $tenant->role_title ?? '—' }}</dd>
+
+                <dt class="text-zinc-500">Tier</dt>
+                <dd class="sm:col-span-2">{{ $tenant->tier->label() }}</dd>
+
+                <dt class="text-zinc-500">Stripe customer</dt>
+                <dd class="sm:col-span-2 font-mono text-xs">{{ $tenant->stripe_customer_id ?? '—' }}</dd>
+
+                <dt class="text-zinc-500">Stripe subscription</dt>
+                <dd class="sm:col-span-2 font-mono text-xs">{{ $tenant->stripe_subscription_id ?? '—' }}</dd>
+
+                <dt class="text-zinc-500">Forge server</dt>
+                <dd class="sm:col-span-2 font-mono text-xs">{{ $tenant->forge_server_id ?? '—' }}</dd>
+
+                <dt class="text-zinc-500">Forge site</dt>
+                <dd class="sm:col-span-2 font-mono text-xs">{{ $tenant->forge_site_id ?? '—' }}</dd>
+
+                <dt class="text-zinc-500">Server IP</dt>
+                <dd class="sm:col-span-2 font-mono text-xs">{{ $tenant->server_ip ?? '—' }}</dd>
+
+                <dt class="text-zinc-500">Created</dt>
+                <dd class="sm:col-span-2">{{ $tenant->created_at?->toDayDateTimeString() }}</dd>
+
+                <dt class="text-zinc-500">Provisioned</dt>
+                <dd class="sm:col-span-2">{{ $tenant->provisioned_at?->toDayDateTimeString() ?? '—' }}</dd>
+            </dl>
+        </flux:card>
+
+        {{-- Right: provisioning log --}}
+        <flux:card class="flex flex-col gap-4">
+            <flux:heading size="lg">Provisioning log</flux:heading>
+            @if (count($this->log) === 0)
+                <flux:text class="text-zinc-500">No log entries yet.</flux:text>
+            @else
+                <ol class="flex flex-col gap-3">
+                    @foreach ($this->log as $entry)
+                        @php
+                            $isFailed = str_starts_with((string) ($entry['message'] ?? ''), 'failed');
+                        @endphp
+                        <li class="flex gap-3 border-l-2 pl-3 {{ $isFailed ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700' }}">
+                            <div class="flex-shrink-0 text-xs font-mono text-zinc-500 w-16">#{{ $entry['step'] ?? '—' }}</div>
+                            <div class="flex-1 text-sm">
+                                <div class="{{ $isFailed ? 'text-red-600 dark:text-red-400 font-medium' : '' }}">{{ $entry['message'] ?? '' }}</div>
+                                <div class="text-xs text-zinc-500">
+                                    @if (! empty($entry['at']))
+                                        {{ \Illuminate\Support\Carbon::parse($entry['at'])->toDayDateTimeString() }}
+                                    @endif
+                                </div>
+                                @if (! empty($entry['error']))
+                                    <pre class="mt-1 text-xs text-red-500 whitespace-pre-wrap">{{ $entry['error'] }}</pre>
+                                @endif
+                            </div>
+                        </li>
+                    @endforeach
+                </ol>
+            @endif
+        </flux:card>
+    </div>
+
+    {{-- Stats --}}
+    <flux:card class="flex flex-col gap-4">
+        <flux:heading size="lg">Recent activity (last 48 ingests)</flux:heading>
+        @if ($this->recentStats->isEmpty())
+            <flux:text class="text-zinc-500">No stats ingested yet.</flux:text>
+        @else
+            <flux:table>
+                <flux:table.columns>
+                    <flux:table.column>Period</flux:table.column>
+                    <flux:table.column>Agents</flux:table.column>
+                    <flux:table.column>Calls</flux:table.column>
+                    <flux:table.column>Talk time</flux:table.column>
+                    <flux:table.column>Avg call</flux:table.column>
+                    <flux:table.column>Ingested</flux:table.column>
+                </flux:table.columns>
+                <flux:table.rows>
+                    @foreach ($this->recentStats as $stat)
+                        <flux:table.row>
+                            <flux:table.cell class="font-mono text-xs">{{ $stat->period_start?->format('Y-m-d H:i') }}</flux:table.cell>
+                            <flux:table.cell>{{ $stat->agent_count }}</flux:table.cell>
+                            <flux:table.cell>{{ $stat->call_count }}</flux:table.cell>
+                            <flux:table.cell>{{ \Illuminate\Support\Carbon::createFromTimestamp(0)->addSeconds($stat->total_talk_seconds)->format('H:i:s') }}</flux:table.cell>
+                            <flux:table.cell>{{ $stat->avg_call_duration_seconds }}s</flux:table.cell>
+                            <flux:table.cell class="text-xs text-zinc-500">{{ $stat->ingested_at?->diffForHumans() }}</flux:table.cell>
+                        </flux:table.row>
+                    @endforeach
+                </flux:table.rows>
+            </flux:table>
+        @endif
+    </flux:card>
+</div>

@@ -47,6 +47,7 @@
 
             <flux:sidebar.nav>
                 @include('claimstaker::partials.sidebar-links')
+                @include('partials.admin-sidebar-links')
             </flux:sidebar.nav>
 
             <flux:spacer />

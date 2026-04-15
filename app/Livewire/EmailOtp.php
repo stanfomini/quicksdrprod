@@ -92,6 +92,15 @@ class EmailOtp extends Component
         session()->put('email_otp_verified_at', now()->getTimestamp());
 
         $intended = session()->pull('email_otp_intended', '/claimstaker/dashboard');
+
+        \Illuminate\Support\Facades\Log::info('[OTP DEBUG] verify success', [
+            'user_id' => auth()->id(),
+            'session_id' => session()->getId(),
+            'verified_at_stored' => session()->get('email_otp_verified_at'),
+            'verified_at_type' => gettype(session()->get('email_otp_verified_at')),
+            'intended' => $intended,
+        ]);
+
         $this->redirect($intended);
     }
 

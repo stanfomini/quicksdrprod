@@ -82,6 +82,17 @@ class RequireEmailOtp
             default => null,
         };
 
+        \Illuminate\Support\Facades\Log::info('[OTP DEBUG] middleware check', [
+            'user_id' => $request->user()?->id,
+            'session_id' => $request->session()->getId(),
+            'url' => $request->fullUrl(),
+            'verified_at_raw' => $verifiedAt,
+            'verified_at_type' => gettype($verifiedAt),
+            'verified_ts' => $verifiedTs,
+            'now' => time(),
+            'will_pass' => $verifiedTs !== null && (time() - $verifiedTs) < self::TTL_SECONDS,
+        ]);
+
         if ($verifiedTs !== null && (time() - $verifiedTs) < self::TTL_SECONDS) {
             return $next($request);
         }

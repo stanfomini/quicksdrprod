@@ -90,7 +90,14 @@ class RequireEmailOtp
             return $next($request);
         }
 
-        $request->session()->put('email_otp_intended', $request->fullUrl());
+        // Only remember GET URLs as the intended destination — never store
+        // a Livewire/POST endpoint here, or verify() will GET-redirect to
+        // it and the user will see a 405. (Livewire-prefixed paths ARE
+        // already in the whitelist above; this guards against any new
+        // POST-only routes that aren't.)
+        if ($request->isMethod('GET')) {
+            $request->session()->put('email_otp_intended', $request->fullUrl());
+        }
 
         return redirect('/email-code');
     }

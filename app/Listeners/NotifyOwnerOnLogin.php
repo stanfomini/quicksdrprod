@@ -12,10 +12,13 @@ class NotifyOwnerOnLogin
     public function handle(Login $event): void
     {
         // Clear any stale OTP code + verify rate-limits from a previous
-        // session so a fresh login always issues a fresh email.
+        // session so a fresh login always issues a fresh email. Also drop
+        // any leftover email_otp_intended (could be a Livewire POST URL
+        // from before the middleware whitelist fix — would 405 on GET).
         Cache::forget('email-otp:'.$event->user->id);
         RateLimiter::clear('email-otp-verify:'.$event->user->id);
         RateLimiter::clear('email-otp-resend:'.$event->user->id);
+        session()->forget(['email_otp_intended', 'email_otp_verified_at']);
 
         if (! app()->environment('production')) {
             return;

@@ -30,6 +30,12 @@ class RequireEmailOtp
             return $next($request);
         }
 
+        // Opt-in via env: deploy with AUTH_EMAIL_OTP_ENABLED=false,
+        // verify login works + Mailgun delivers, then flip to true.
+        if (! config('auth.email_otp_enabled', false)) {
+            return $next($request);
+        }
+
         // Allow the OTP page itself + logout + Livewire internal requests
         // through so the flow can complete.
         if ($request->is('email-code', 'email-code/*', 'logout', 'livewire/*')) {

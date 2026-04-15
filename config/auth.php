@@ -22,6 +22,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Email OTP (second factor)
+    |--------------------------------------------------------------------------
+    |
+    | When true (and APP_ENV=production), the RequireEmailOtp middleware
+    | requires every authenticated user to complete a 6-digit email code
+    | at /email-code every 24 hours. Default is false so the flag can be
+    | flipped on after verifying Mailgun delivery works end-to-end.
+    |
+    */
+
+    'email_otp_enabled' => env('AUTH_EMAIL_OTP_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Authentication Guards
     |--------------------------------------------------------------------------
     |

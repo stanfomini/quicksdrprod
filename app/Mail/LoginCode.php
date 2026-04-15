@@ -4,13 +4,17 @@ namespace App\Mail;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class LoginCode extends Mailable implements ShouldQueue
+/**
+ * Sent synchronously (NOT queued via ShouldQueue) so the OTP code lands
+ * in the user's inbox before the /email-code page finishes rendering.
+ * Queue lag of even a couple seconds is unacceptable UX for 2FA.
+ */
+class LoginCode extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -22,8 +26,11 @@ class LoginCode extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
+        // Subject deliberately omits the code — Gmail flags emails with
+        // numeric/code-looking content in the subject as Promotions, which
+        // hides the OTP under a separate inbox tab. The code is in the body.
         return new Envelope(
-            subject: "Your QuickSDR login code: {$this->code}",
+            subject: 'QuickSDR sign-in verification',
             to: [$this->user->email],
         );
     }

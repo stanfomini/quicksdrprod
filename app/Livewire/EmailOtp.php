@@ -100,7 +100,9 @@ class EmailOtp extends Component
         $code = (string) random_int(100000, 999999);
         Cache::put($this->cacheKey(), $code, self::CACHE_TTL_SECONDS);
 
-        Mail::to(auth()->user()->email)->queue(new LoginCode(
+        // ->send() not ->queue(): the user is staring at the page waiting
+        // for the email; we don't want a queue worker hiccup to delay it.
+        Mail::to(auth()->user()->email)->send(new LoginCode(
             user: auth()->user(),
             code: $code,
             expiresInMinutes: (int) (self::CACHE_TTL_SECONDS / 60),

@@ -8,7 +8,7 @@ use Laravel\Forge\Resources\Database;
 use Laravel\Forge\Resources\Recipe;
 use Laravel\Forge\Resources\Server;
 use Laravel\Forge\Resources\Site;
-use Laravel\Forge\Resources\SSLCertificate;
+use Laravel\Forge\Resources\Certificate;
 use RuntimeException;
 
 /**
@@ -123,7 +123,7 @@ class ForgeClient
         ]);
     }
 
-    public function obtainLetsEncryptCertificate(int $serverId, int $siteId, array $domains): SSLCertificate
+    public function obtainLetsEncryptCertificate(int $serverId, int $siteId, array $domains): Certificate
     {
         return $this->forge->obtainLetsEncryptCertificate(
             $serverId,
@@ -134,7 +134,7 @@ class ForgeClient
     }
 
     /**
-     * @return array<int, SSLCertificate>
+     * @return array<int, Certificate>
      */
     public function listCertificates(int $serverId, int $siteId): array
     {

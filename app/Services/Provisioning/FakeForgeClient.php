@@ -8,7 +8,7 @@ use Laravel\Forge\Resources\Database;
 use Laravel\Forge\Resources\Recipe;
 use Laravel\Forge\Resources\Server;
 use Laravel\Forge\Resources\Site;
-use Laravel\Forge\Resources\SSLCertificate;
+use Laravel\Forge\Resources\Certificate;
 
 /**
  * Non-network Forge client used when PROVISIONING_DRY_RUN=true. Every call
@@ -84,12 +84,12 @@ class FakeForgeClient extends ForgeClient
         $this->log('installGitRepository', compact('serverId', 'siteId', 'repo', 'branch', 'provider'));
     }
 
-    public function obtainLetsEncryptCertificate(int $serverId, int $siteId, array $domains): SSLCertificate
+    public function obtainLetsEncryptCertificate(int $serverId, int $siteId, array $domains): Certificate
     {
         $id = $this->stableId('cert', "{$serverId}:{$siteId}");
         $this->log('obtainLetsEncryptCertificate', compact('serverId', 'siteId', 'domains', 'id'));
 
-        $cert = new SSLCertificate([], null);
+        $cert = new Certificate([], null);
         $cert->id = $id;
         $cert->domain = $domains[0] ?? null;
         $cert->active = true;

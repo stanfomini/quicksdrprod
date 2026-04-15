@@ -10,6 +10,7 @@ use App\Livewire\Admin\Tenants\Show as AdminTenantsShow;
 use App\Livewire\ContactSales;
 use App\Livewire\Signup;
 use App\Livewire\Tenant\Export as TenantExport;
+use App\Models\Tenant;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 
@@ -27,7 +28,9 @@ require __DIR__.'/settings.php';
 Route::middleware([EnsureOrchestrator::class])->group(function () {
     Route::get('/signup', Signup::class)->name('signup');
     Route::get('/signup/success', [SignupSuccessController::class, 'show'])->name('signup.success');
-    Route::get('/signup/pending', fn () => view('signup.pending'))->name('signup.pending');
+    Route::get('/signup/pending/{tenant?}', function (?Tenant $tenant = null) {
+        return view('signup.pending', ['tenant' => $tenant]);
+    })->name('signup.pending');
     Route::get('/signup/status/{tenant}', [SignupSuccessController::class, 'status'])->name('signup.status');
 
     Route::get('/contact-sales', ContactSales::class)->name('contact-sales');

@@ -84,4 +84,12 @@ return [
         'public_key' => env('PARTNERSTACK_PUBLIC_KEY'),
     ],
 
+    'lead_webhooks' => [
+        'urls' => array_values(array_filter(array_map('trim', explode(',', (string) env('LEAD_WEBHOOK_URLS', ''))))),
+    ],
+
+    'google' => [
+        'calendar_booking_url' => env('GOOGLE_CALENDAR_BOOKING_URL'),
+    ],
+
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Services\LeadWebhookDispatcher;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -46,6 +47,15 @@ class ContactSales extends Component
                     ->replyTo($this->email, $this->name);
             }
         );
+
+        app(LeadWebhookDispatcher::class)->dispatch([
+            'tier' => 'tier4',
+            'admin_name' => $this->name,
+            'admin_email' => $this->email,
+            'admin_phone' => $this->phone,
+            'business_name' => $this->company,
+            'scope' => $this->scope,
+        ]);
 
         $this->submitted = true;
     }

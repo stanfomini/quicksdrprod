@@ -134,18 +134,18 @@
                         <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75"></span>
                         <span class="relative inline-flex h-2 w-2 rounded-full bg-cyan-500"></span>
                     </span>
-                    Multi-line dialer for SDR teams
+                    Built for SDR teams, agencies &amp; BPOs
                 </span>
 
                 <h1 class="mt-6 text-5xl font-semibold tracking-tight text-zinc-100 sm:text-6xl lg:text-7xl">
-                    Dial 5 lines at once.<br>
+                    Your team. Your companies.<br>
                     <span class="bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                        Close more this week.
+                        Your dialer.
                     </span>
                 </h1>
 
                 <p class="mt-6 max-w-xl text-lg leading-relaxed text-zinc-400 sm:text-xl">
-                    QuickSDR rings five numbers in parallel, routes the first human pickup to your rep, and scores every conversation with AI — on a dedicated server that's yours, not a shared SaaS tenant.
+                    Build an inbound or outbound SDR team on a multi-line power dialer with AI call intelligence baked in. Run one company or twenty. Add agents without per-seat fees. No CRM lock-in, no single-line throttle.
                 </p>
 
                 <div class="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -243,10 +243,10 @@
         <div class="mx-auto max-w-6xl px-6 py-10">
             <dl class="grid grid-cols-2 gap-6 md:grid-cols-5">
                 @foreach ([
-                    ['5 lines', 'per agent'],
-                    ['300+', 'dials / hour'],
-                    ['60%', 'AMD detect'],
-                    ['3×', 'connect rate'],
+                    ['5 lines', 'dialed in parallel'],
+                    ['Unlimited', 'agents per account'],
+                    ['Unlimited', 'companies'],
+                    ['$0', 'per-seat fee'],
                     ['TCPA', '+ A2P compliant'],
                 ] as [$stat, $label])
                     <div class="text-center">
@@ -270,25 +270,32 @@
                 <flux:heading size="xl" class="text-zinc-100">Cold-call dialing is broken.</flux:heading>
             </div>
 
-            <div class="grid gap-8 md:grid-cols-3">
+            <div class="grid gap-8 md:grid-cols-2">
                 <div class="border-l-2 border-cyan-500/40 pl-5">
                     <p class="text-zinc-300">
-                        <span class="font-semibold text-zinc-100">Manual dialing wastes 70% of the day.</span>
-                        Rings, voicemails, bad numbers, wrong contacts — your reps are paid to talk, not to wait.
+                        <span class="font-semibold text-zinc-100">Single-line dialers throttle your team.</span>
+                        One rep, one live connect at a time. Pipeline throughput caps out fast — and there's no room to grow without hiring more bodies.
                     </p>
                 </div>
 
                 <div class="border-l-2 border-cyan-500/40 pl-5">
                     <p class="text-zinc-300">
-                        <span class="font-semibold text-zinc-100">Single-line dialers are a speed bump.</span>
-                        They help — but you're still throttled to one live connect at a time. Pipeline throughput caps out fast.
+                        <span class="font-semibold text-zinc-100">Your stack punishes growth.</span>
+                        CRM per seat. Dialer per seat. Call intelligence per seat. Hire one rep, three vendors raise your bill. Onboard a new client company? Pay again.
+                    </p>
+                </div>
+
+                <div class="border-l-2 border-cyan-500/40 pl-5">
+                    <p class="text-zinc-300">
+                        <span class="font-semibold text-zinc-100">Your CRM owns your data.</span>
+                        Want to call a list that lives outside your CRM? Can't do it. Want to export transcripts? Enterprise plan upgrade. Want to leave? Good luck migrating two years of activity history.
                     </p>
                 </div>
 
                 <div class="border-l-2 border-cyan-500/40 pl-5">
                     <p class="text-zinc-300">
                         <span class="font-semibold text-zinc-100">Auto-dialers without intelligence burn numbers.</span>
-                        Spam-flagged caller IDs, TCPA violations, and blocked carriers tank your deliverability overnight.
+                        Spam-flagged caller IDs, TCPA violations, and blocked carriers tank your deliverability overnight — and the tools that are supposed to prevent this charge extra for compliance.
                     </p>
                 </div>
             </div>
@@ -309,7 +316,7 @@
                 </flux:text>
             </div>
 
-            <div class="mt-16 grid gap-6 md:grid-cols-2">
+            <div class="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {{-- Pillar 1 --}}
                 <flux:card class="group border-zinc-800 transition hover:border-cyan-500/40">
                     <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20">
@@ -319,10 +326,6 @@
                     <flux:text class="mt-2 text-zinc-400">
                         Dial up to 5 numbers in parallel. The first human pickup auto-routes to your rep's screen. The other lines drop instantly — no awkward double-connects.
                     </flux:text>
-                    <a href="#deepdive-dialer" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-cyan-400 hover:text-cyan-300">
-                        See it in action
-                        <flux:icon name="arrow-right" class="h-4 w-4" aria-hidden="true" />
-                    </a>
                 </flux:card>
 
                 {{-- Pillar 2 --}}
@@ -334,13 +337,20 @@
                     <flux:text class="mt-2 text-zinc-400">
                         Every call transcribed, sentiment-scored, and summarized in real time. A lead score lands on the contact card before the call ends.
                     </flux:text>
-                    <a href="#deepdive-ai" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-cyan-400 hover:text-cyan-300">
-                        How the scoring works
-                        <flux:icon name="arrow-right" class="h-4 w-4" aria-hidden="true" />
-                    </a>
                 </flux:card>
 
-                {{-- Pillar 3 --}}
+                {{-- Pillar 3 — NEW: Team + Multi-Company --}}
+                <flux:card class="group border-cyan-500/30 bg-cyan-500/5 transition hover:border-cyan-500/60">
+                    <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20">
+                        <flux:icon name="user-group" class="h-6 w-6" aria-hidden="true" />
+                    </div>
+                    <flux:heading size="lg" class="text-zinc-200">Unlimited Team &amp; Companies</flux:heading>
+                    <flux:text class="mt-2 text-zinc-400">
+                        Add agents, managers, and entire client companies without per-seat fees. Run inbound, outbound, or both — one flat monthly cost, scale whenever you're ready.
+                    </flux:text>
+                </flux:card>
+
+                {{-- Pillar 4 --}}
                 <flux:card class="group border-zinc-800 transition hover:border-cyan-500/40">
                     <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20">
                         <flux:icon name="queue-list" class="h-6 w-6" aria-hidden="true" />
@@ -349,13 +359,20 @@
                     <flux:text class="mt-2 text-zinc-400">
                         Cadence auto-enrollment, callback rules, per-timezone TCPA windows, and missed-call recovery — all built in, all configurable per campaign.
                     </flux:text>
-                    <a href="#deepdive-queue" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-cyan-400 hover:text-cyan-300">
-                        Dig into cadences
-                        <flux:icon name="arrow-right" class="h-4 w-4" aria-hidden="true" />
-                    </a>
                 </flux:card>
 
-                {{-- Pillar 4 --}}
+                {{-- Pillar 5 — NEW: CRM-agnostic --}}
+                <flux:card class="group border-zinc-800 transition hover:border-cyan-500/40">
+                    <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20">
+                        <flux:icon name="link" class="h-6 w-6" aria-hidden="true" />
+                    </div>
+                    <flux:heading size="lg" class="text-zinc-200">No CRM Lock-in</flux:heading>
+                    <flux:text class="mt-2 text-zinc-400">
+                        Use QuickSDR as your source of truth, or push contacts, dispositions, and transcripts into Salesforce, HubSpot, or your own CRM via webhook. Your data flows where you need it.
+                    </flux:text>
+                </flux:card>
+
+                {{-- Pillar 6 --}}
                 <flux:card class="group border-zinc-800 transition hover:border-cyan-500/40">
                     <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20">
                         <flux:icon name="shield-check" class="h-6 w-6" aria-hidden="true" />
@@ -364,10 +381,6 @@
                     <flux:text class="mt-2 text-zinc-400">
                         TCPA test mode, A2P-aware messaging, AMD whitelisting, and automatic carrier-flag mitigation so your numbers don't get blocked.
                     </flux:text>
-                    <a href="#faq" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-cyan-400 hover:text-cyan-300">
-                        Read the compliance FAQ
-                        <flux:icon name="arrow-right" class="h-4 w-4" aria-hidden="true" />
-                    </a>
                 </flux:card>
             </div>
         </div>
@@ -473,17 +486,17 @@
     <section class="bg-zinc-900 py-24">
         <div class="mx-auto max-w-6xl px-6">
             <div class="mx-auto max-w-2xl text-center">
-                <flux:heading size="xl" class="text-zinc-100 sm:text-4xl">Live in an afternoon.</flux:heading>
+                <flux:heading size="xl" class="text-zinc-100 sm:text-4xl">Stand up your dialing team.</flux:heading>
                 <flux:text class="mt-4 text-lg text-zinc-400">
-                    No sales calls to get started. No procurement cycle. You sign up, we provision, you dial.
+                    Self-serve if you're already on Twilio, or we do the heavy lifting for you. No procurement cycle, no per-seat contract, no lock-in.
                 </flux:text>
             </div>
 
             <div class="mt-16 grid gap-10 md:grid-cols-3">
                 @foreach ([
-                    ['1', 'Sign up', 'Pick a tier and enter your business name. Your dedicated server is provisioned in about 10 minutes.'],
-                    ['2', 'Connect Twilio + AI', 'Drop in your Twilio and AI provider keys — or have our team handle it for you on Tier 2 and up.'],
-                    ['3', 'Start dialing', 'Import contacts, set a cadence, hit Dial. The platform handles routing, compliance, and scoring.'],
+                    ['1', 'Pick your tier', 'Self-serve if you already run Twilio + AI. Or pick Tier 2/3 and we handle Twilio A2P, AI keys, and call-flow setup for you end-to-end.'],
+                    ['2', 'Add your agents & companies', 'Invite as many reps and managers as you need. Onboard one company or twenty — no per-seat fees, no per-company surcharges.'],
+                    ['3', 'Start dialing', 'Import contacts, set a cadence, hit Dial. QuickSDR handles routing, compliance, scoring, and pipes the data wherever your CRM needs it.'],
                 ] as [$n, $title, $desc])
                     <div class="text-center md:text-left">
                         <div class="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-cyan-500 to-blue-500 text-xl font-bold text-white shadow-lg shadow-cyan-500/20 md:mx-0">
@@ -523,12 +536,14 @@
                     <tbody class="divide-y divide-zinc-800 bg-zinc-900/40">
                         @php
                             $rows = [
-                                ['Dials per rep per hour',   '30–40',                                                '80–120',                                            '300+'],
-                                ['AI call scoring',          ['badge', 'missing', '—'],                              ['badge', 'missing', '—'],                            ['badge', 'yes', 'Built in']],
-                                ['TCPA-aware calling hours', ['badge', 'missing', 'Manual'],                         ['badge', 'partial', 'Basic'],                        ['badge', 'yes', 'Per-timezone']],
-                                ['Dedicated server',         ['badge', 'missing', '—'],                              ['badge', 'missing', 'Shared tenant'],                ['badge', 'yes', 'Single-tenant']],
-                                ['Setup time',               'Days',                                                  'Hours',                                             'Minutes'],
-                                ['Voicemail drops',          ['badge', 'missing', '—'],                              ['badge', 'partial', 'Add-on'],                       ['badge', 'yes', 'Included']],
+                                ['Dials per rep per hour',       '30–40',                                            '80–120',                                            '300+'],
+                                ['Per-agent fee',                'N/A',                                              '$80–$150 / user / mo',                              ['badge', 'yes', 'None — flat price']],
+                                ['Multi-company support',        ['badge', 'missing', '—'],                          ['badge', 'missing', 'Per-brand fees'],              ['badge', 'yes', 'Unlimited']],
+                                ['AI call scoring',              ['badge', 'missing', '—'],                          ['badge', 'missing', '—'],                           ['badge', 'yes', 'Built in']],
+                                ['TCPA-aware calling hours',     ['badge', 'missing', 'Manual'],                     ['badge', 'partial', 'Basic'],                       ['badge', 'yes', 'Per-timezone']],
+                                ['Dedicated server',             ['badge', 'missing', '—'],                          ['badge', 'missing', 'Shared tenant'],               ['badge', 'yes', 'Single-tenant']],
+                                ['CRM lock-in',                  '—',                                                ['badge', 'partial', 'Your CRM owns data'],          ['badge', 'yes', 'Works with any / standalone']],
+                                ['Voicemail drops',              ['badge', 'missing', '—'],                          ['badge', 'partial', 'Add-on'],                      ['badge', 'yes', 'Included']],
                             ];
                         @endphp
                         @foreach ($rows as $row)
@@ -783,8 +798,10 @@
                      'When your rep starts a session, QuickSDR rings up to 5 numbers simultaneously. The first human who picks up is routed to your rep instantly. The other calls drop before the prospect can even say hello — no double-connects, no awkward apologies.'],
                     ['Will I get flagged as spam?',
                      'Every outbound carrier has spam-flag heuristics. QuickSDR fights them proactively: automatic abandonment-rate throttling, TCPA window enforcement per timezone, AMD whitelisting, and local-presence rotation if you enable it. You stay inside the rails the carriers actually care about.'],
-                    ['How fast is setup?',
-                     'Tier 1 provisions your dedicated server in about 10 minutes — sign up, import contacts, start dialing. Tier 2 and up include a kickoff call where we do the Twilio registration, AI keys, and call-flow design for you.'],
+                    ['How long does setup take?',
+                     "It depends on what you're starting with. If you already have Twilio + AI keys, Tier 1 is quick — connect and dial. If you're new to Twilio, A2P registration can take 1–2 weeks with carriers, AI providers need configuration, and call flows should match your playbook — that's what Tier 2 and 3 cover: we do that work for you so you don't spend a month learning the stack."],
+                    ['Do I pay per agent or per company?',
+                     "No on both. QuickSDR is flat per month per server — you can add unlimited agents and unlimited companies without your bill changing. If you're running SDR for multiple brands (agency, BPO, holding company), this is the biggest savings vs. per-seat tools."],
                     ['Do I need my own Twilio account?',
                      'Yes — QuickSDR rides on your Twilio account so your numbers, your A2P registration, and your spending stay on your books. On Tier 2 and up, we handle the registration and configuration for you; on Tier 1, you connect your own keys in the dashboard.'],
                     ['What AI providers can I use?',
@@ -812,10 +829,10 @@
     <section class="bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-500 py-20">
         <div class="mx-auto max-w-4xl px-6 text-center">
             <h2 class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                Start closing more this week.
+                Build your team without the per-seat tax.
             </h2>
             <p class="mx-auto mt-4 max-w-xl text-lg text-white/90">
-                Spin up your dedicated dialer in minutes. Your reps will be dialing five lines before their coffee gets cold.
+                Unlimited agents, unlimited companies, dedicated server. Scale when you're ready — your bill doesn't change.
             </p>
             <div class="mt-8 flex justify-center">
                 <a href="/signup"
@@ -842,7 +859,7 @@
                         <img src="/brand/qsdr-logo.svg" alt="QuickSDR" class="h-8 w-auto">
                     </a>
                     <p class="mt-4 max-w-xs text-sm text-zinc-400">
-                        Multi-line power dialer + AI call intelligence, delivered on a dedicated server per customer.
+                        Build an SDR team without the per-seat tax. Multi-line power dialer + AI call intelligence, on a dedicated server that's yours.
                     </p>
                     <p class="mt-6 text-xs text-zinc-600">&copy; {{ date('Y') }} QuickSDR. All rights reserved.</p>
                 </div>
@@ -863,7 +880,8 @@
                     <h4 class="text-sm font-semibold uppercase tracking-wider text-zinc-300">Company</h4>
                     <ul class="mt-4 space-y-2 text-sm">
                         <li><a href="/about" class="text-zinc-400 transition hover:text-zinc-100">About</a></li>
-                        <li><a href="/contact-sales" class="text-zinc-400 transition hover:text-zinc-100">Contact</a></li>
+                        <li><a href="/contact" class="text-zinc-400 transition hover:text-zinc-100">Contact</a></li>
+                        <li><a href="/contact-sales" class="text-zinc-400 transition hover:text-zinc-100">Talk to sales</a></li>
                         <li><a href="{{ route('login') }}" class="text-zinc-400 transition hover:text-zinc-100">Sign in</a></li>
                     </ul>
                 </div>

@@ -15,6 +15,8 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing')->name('home');
+Route::view('/about', 'about')->name('about');
+Route::view('/contact', 'contact')->name('contact');
 
 Route::get('/admin-signup/{token}', [AdminSignupController::class, 'show'])->name('admin-signup.show');
 Route::post('/admin-signup/{token}', [AdminSignupController::class, 'store'])->name('admin-signup.store');

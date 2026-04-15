@@ -52,6 +52,10 @@ class RequireEmailOtp
         'email-code',
         'email-code/*',
         'livewire/*',
+        // Livewire 4 randomizes the update endpoint prefix per build
+        // (e.g. /livewire-5b92011c/update) to defeat naive scanners. Match
+        // any livewire-*/update or livewire-*/livewire.js too.
+        'livewire-*',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -81,17 +85,6 @@ class RequireEmailOtp
             $verifiedAt instanceof DateTimeInterface => $verifiedAt->getTimestamp(),
             default => null,
         };
-
-        \Illuminate\Support\Facades\Log::info('[OTP DEBUG] middleware check', [
-            'user_id' => $request->user()?->id,
-            'session_id' => $request->session()->getId(),
-            'url' => $request->fullUrl(),
-            'verified_at_raw' => $verifiedAt,
-            'verified_at_type' => gettype($verifiedAt),
-            'verified_ts' => $verifiedTs,
-            'now' => time(),
-            'will_pass' => $verifiedTs !== null && (time() - $verifiedTs) < self::TTL_SECONDS,
-        ]);
 
         if ($verifiedTs !== null && (time() - $verifiedTs) < self::TTL_SECONDS) {
             return $next($request);

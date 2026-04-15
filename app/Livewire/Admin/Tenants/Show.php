@@ -36,6 +36,31 @@ class Show extends Component
         $this->tenant->refresh();
     }
 
+    /**
+     * Kick off provisioning on a Pending tenant. Used for Tier 2/3 tenants
+     * that didn't auto-provision at signup (kickoff-call-first flow), or
+     * any tenant created manually via /admin/tenants/create without the
+     * "Provision immediately" checkbox.
+     */
+    public function provisionNow(): void
+    {
+        if ($this->tenant->status !== TenantStatus::Pending) {
+            $this->dispatch('toast', type: 'warning', message: 'Provision now is only available for Pending tenants. Use Retry for failed ones.');
+
+            return;
+        }
+
+        ProvisionTenantServer::dispatch($this->tenant);
+
+        $mode = config('services.provisioning.dry_run')
+            ? 'dry-run (simulated)'
+            : 'REAL Forge provisioning';
+
+        $this->dispatch('toast', type: 'success', message: "Provision dispatched — {$mode}. Watch the step log below.");
+
+        $this->tenant->refresh();
+    }
+
     public function destroyServer(): void
     {
         DestroyTenantServer::dispatch($this->tenant);

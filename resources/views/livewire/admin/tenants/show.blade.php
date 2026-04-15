@@ -32,6 +32,12 @@
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
+        @if ($tenant->status === \App\Enums\TenantStatus::Pending)
+            <flux:modal.trigger name="provision-now">
+                <flux:button variant="primary" icon="rocket-launch">Provision now</flux:button>
+            </flux:modal.trigger>
+        @endif
+
         @if ($tenant->status === \App\Enums\TenantStatus::Failed)
             <flux:button wire:click="retryProvisioning" variant="primary" icon="arrow-path">Retry provisioning</flux:button>
         @endif
@@ -59,6 +65,35 @@
                 </flux:modal.close>
                 <flux:modal.close>
                     <flux:button variant="danger" wire:click="destroyServer">Destroy</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="provision-now" class="md:w-[32rem]">
+        <div class="flex flex-col gap-4">
+            <flux:heading size="lg">Provision {{ $tenant->subdomain }} now?</flux:heading>
+            @if (config('services.provisioning.dry_run'))
+                <flux:callout color="amber" icon="beaker">
+                    <flux:callout.heading>Dry-run mode is ON</flux:callout.heading>
+                    <flux:callout.text>
+                        PROVISIONING_DRY_RUN=true — this will simulate all 22 steps without touching Forge or Cloudflare. No real server is created. Flip the env var to false to do a real build.
+                    </flux:callout.text>
+                </flux:callout>
+            @else
+                <flux:callout color="red" icon="exclamation-triangle">
+                    <flux:callout.heading>This will create a real DigitalOcean server</flux:callout.heading>
+                    <flux:callout.text>
+                        PROVISIONING_DRY_RUN is off. Clicking Provision will call Forge → DO → spin up a {{ $tenant->tier->serverSize() }} droplet (~$18–24/mo), create DNS records, request SSL, and deploy the tenant app. ~12–15 min end to end. Destroy via the Destroy button when done.
+                    </flux:callout.text>
+                </flux:callout>
+            @endif
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button variant="primary" icon="rocket-launch" wire:click="provisionNow">Provision</flux:button>
                 </flux:modal.close>
             </div>
         </div>

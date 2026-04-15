@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnforceExportOnly;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureOrchestrator;
+use App\Http\Middleware\RequireTwoFactor;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'orchestrator' => EnsureOrchestrator::class,
             'internal-user' => EnsureInternalUser::class,
             'export-only' => EnforceExportOnly::class,
+            '2fa-required' => RequireTwoFactor::class,
         ]);
 
         // Always apply EnforceExportOnly on tenant web requests so cancelled
@@ -27,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // (config('app.mode') !== 'tenant' short-circuits in the middleware).
         $middleware->web(append: [
             EnforceExportOnly::class,
+            RequireTwoFactor::class,
         ]);
 
         // Stripe webhook must be CSRF-exempt.

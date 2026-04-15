@@ -7,8 +7,10 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\LoginResponse;
 use App\Http\Responses\RegisterResponse;
 use App\Http\Responses\TwoFactorLoginResponse;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -37,6 +39,21 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
+
+        // Production lockdown: only the owner (user id 1) can log in.
+        // Other valid credentials silently fail — no enumeration leak.
+        // Dev/staging environments are unaffected.
+        if ($this->app->environment('production')) {
+            Fortify::authenticateUsing(function (Request $request) {
+                $user = User::where('email', $request->email)->first();
+
+                if (! $user || $user->id !== 1) {
+                    return null;
+                }
+
+                return Hash::check($request->password, $user->password) ? $user : null;
+            });
+        }
     }
 
     /**

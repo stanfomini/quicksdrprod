@@ -7,7 +7,9 @@ use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureOrchestrator;
 use App\Livewire\Admin\Tenants\Index as AdminTenantsIndex;
 use App\Livewire\Admin\Tenants\Show as AdminTenantsShow;
+use App\Livewire\ContactSales;
 use App\Livewire\Signup;
+use App\Livewire\Tenant\Export as TenantExport;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 
@@ -28,9 +30,17 @@ Route::middleware([EnsureOrchestrator::class])->group(function () {
     Route::get('/signup/pending', fn () => view('signup.pending'))->name('signup.pending');
     Route::get('/signup/status/{tenant}', [SignupSuccessController::class, 'status'])->name('signup.status');
 
+    Route::get('/contact-sales', ContactSales::class)->name('contact-sales');
+
     Route::post('/stripe/webhook', [StripeWebhookController::class, 'handleWebhook'])
         ->name('stripe.webhook')
         ->withoutMiddleware([VerifyCsrfToken::class]);
+});
+
+// Tenant-side: /export page, shown only when the app is in export-only mode
+// (config('app.export_only_until') is a future timestamp). Auth-gated.
+Route::middleware(['auth'])->group(function () {
+    Route::get('/export', TenantExport::class)->name('tenant.export');
 });
 
 Route::middleware([EnsureOrchestrator::class, 'auth', EnsureInternalUser::class])

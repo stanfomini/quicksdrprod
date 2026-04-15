@@ -2,16 +2,15 @@
     'sidebar' => false,
 ])
 
+{{-- Sidebar / header brand — renders the landing-page QSDR word logo
+     (blue→cyan gradient) as a single image. The SVG already contains
+     the letterforms, so we don't render the flux:brand name prop. --}}
 @if($sidebar)
-    <flux:sidebar.brand name="QuickSDR" {{ $attributes }}>
-        <x-slot name="logo" class="flex aspect-square size-8 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm">
-            <x-app-logo-icon class="size-5" />
-        </x-slot>
-    </flux:sidebar.brand>
+    <a href="{{ $attributes->get('href') ?? url('/') }}" {{ $attributes->class(['flex items-center px-2 py-1'])->except('href') }} wire:navigate>
+        <img src="{{ asset('brand/qsdr-logo.svg') }}" alt="QuickSDR" class="h-6 w-auto" />
+    </a>
 @else
-    <flux:brand name="QuickSDR" {{ $attributes }}>
-        <x-slot name="logo" class="flex aspect-square size-8 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm">
-            <x-app-logo-icon class="size-5" />
-        </x-slot>
-    </flux:brand>
+    <a href="{{ $attributes->get('href') ?? url('/') }}" {{ $attributes->class(['flex items-center'])->except('href') }} wire:navigate>
+        <img src="{{ asset('brand/qsdr-logo.svg') }}" alt="QuickSDR" class="h-7 w-auto" />
+    </a>
 @endif

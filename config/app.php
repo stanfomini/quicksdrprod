@@ -44,6 +44,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Export-only cutoff (tenant-side)
+    |--------------------------------------------------------------------------
+    |
+    | When a tenant's subscription is cancelled, the orchestrator sets
+    | TENANT_EXPORT_ONLY_UNTIL in the tenant's .env to a timestamp ~7 days
+    | out. While now() < this value, EnforceExportOnly middleware redirects
+    | all authenticated requests to /export for CSV downloads.
+    |
+    */
+
+    'export_only_until' => env('TENANT_EXPORT_ONLY_UNTIL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Debug Mode
     |--------------------------------------------------------------------------
     |

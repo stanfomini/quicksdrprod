@@ -95,13 +95,13 @@
 
             <div class="mt-10 space-y-3">
                 @foreach ([
-                    ['I want to sign up but I need help with Twilio A2P / AI setup.',
+                    ["I want to sign up but I need help with Twilio A2P / AI setup.",
                      "That's what Tier 2 and Tier 3 are for — pick one on the signup page, we'll follow up to schedule a kickoff call, and handle the setup with you."],
-                    ['I have a custom integration or AI agent build in mind.',
-                     "Use the Talk to sales form — it routes a custom-build inquiry straight to us. $160/hr for custom AI/automation work."],
-                    ['I'm already a customer and something's broken.',
+                    ["I have a custom integration or AI agent build in mind.",
+                     "Use the Talk to sales form — it routes a custom-build inquiry straight to us. \$160/hr for custom AI/automation work."],
+                    ["I'm already a customer and something's broken.",
                      "Email us directly, or call — if it's urgent, phone is fastest. Don't use the Talk to sales form for bugs; it goes to the sales queue."],
-                    ['Can you give me a demo?',
+                    ["Can you give me a demo?",
                      "Sure — book a call via the Talk to sales link above. Demos are usually 30 minutes on Zoom; we'll walk through the live product with your use case in mind."],
                 ] as [$q, $a])
                     <details class="group rounded-xl border border-zinc-800 bg-zinc-900/40 px-5 py-4 [&[open]]:bg-zinc-900/70">

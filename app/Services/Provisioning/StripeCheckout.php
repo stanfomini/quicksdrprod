@@ -12,6 +12,28 @@ use Stripe\StripeClient;
 class StripeCheckout
 {
     /**
+     * Whether enough Stripe config is in place to build a checkout session
+     * for the given tier. Public signup falls back to a manual-onboarding
+     * flow when this is false so a missing env var doesn't produce a 500.
+     */
+    public function isConfigured(TenantTier $tier = TenantTier::Tier1): bool
+    {
+        if (! config('services.stripe.secret')) {
+            return false;
+        }
+
+        if (! config("services.stripe.tiers.{$tier->value}.price")) {
+            return false;
+        }
+
+        if ($tier->setupFeeCents() > 0 && ! config("services.stripe.tiers.{$tier->value}.setup")) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Build a Stripe Checkout session for a pending tenant and return the
      * redirect URL. Tier 4 is "contact sales" and must not reach this flow.
      */

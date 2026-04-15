@@ -114,7 +114,7 @@ class Signup extends Component
             'subdomain' => $tenant->subdomain,
         ]);
 
-        if ($tenant->tier === TenantTier::Tier1) {
+        if ($tenant->tier === TenantTier::Tier1 && $checkout->isConfigured(TenantTier::Tier1)) {
             $url = $checkout->createSession($tenant);
 
             return $this->redirect($url);

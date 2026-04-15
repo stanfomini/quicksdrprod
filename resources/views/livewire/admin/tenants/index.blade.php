@@ -9,8 +9,18 @@
         }
     "
 >
-    <flux:heading size="xl">Tenants</flux:heading>
-    <flux:text class="text-zinc-500">All provisioned SaaS tenants. Search, filter, and drill into provisioning logs.</flux:text>
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <flux:heading size="xl">Tenants</flux:heading>
+                @if (config('services.provisioning.dry_run'))
+                    <flux:badge size="sm" color="amber" icon="beaker">Dry-run mode</flux:badge>
+                @endif
+            </div>
+            <flux:text class="text-zinc-500">All provisioned SaaS tenants. Search, filter, and drill into provisioning logs.</flux:text>
+        </div>
+        <flux:button variant="primary" icon="plus" :href="route('admin.tenants.create')" wire:navigate>New tenant</flux:button>
+    </div>
 
     <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
         <flux:input
@@ -53,9 +63,14 @@
             @forelse ($tenants as $tenant)
                 <flux:table.row :key="$tenant->id">
                     <flux:table.cell>
-                        <a href="{{ route('admin.tenants.show', $tenant) }}" class="font-medium text-blue-600 hover:underline dark:text-blue-400" wire:navigate>
-                            {{ $tenant->subdomain }}.quicksdr.com
-                        </a>
+                        <div class="flex items-center gap-2">
+                            <a href="{{ route('admin.tenants.show', $tenant) }}" class="font-medium text-blue-600 hover:underline dark:text-blue-400" wire:navigate>
+                                {{ $tenant->subdomain }}.quicksdr.com
+                            </a>
+                            @if ($tenant->dry_run)
+                                <flux:badge size="sm" color="amber" icon="beaker">dry-run</flux:badge>
+                            @endif
+                        </div>
                         <div class="text-xs text-zinc-500">{{ $tenant->business_name }}</div>
                     </flux:table.cell>
                     <flux:table.cell>

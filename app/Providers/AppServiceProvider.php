@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Services\Provisioning\CloudflareClient;
+use App\Services\Provisioning\FakeCloudflareClient;
+use App\Services\Provisioning\FakeForgeClient;
+use App\Services\Provisioning\ForgeClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +19,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        if (config('services.provisioning.dry_run')) {
+            $this->app->singleton(ForgeClient::class, fn () => new FakeForgeClient);
+            $this->app->singleton(CloudflareClient::class, fn () => new FakeCloudflareClient);
+        }
     }
 
     /**

@@ -5,6 +5,7 @@ use App\Http\Controllers\SignupSuccessController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureOrchestrator;
+use App\Livewire\Admin\Tenants\Create as AdminTenantsCreate;
 use App\Livewire\Admin\Tenants\Index as AdminTenantsIndex;
 use App\Livewire\Admin\Tenants\Show as AdminTenantsShow;
 use App\Livewire\ContactSales;
@@ -60,5 +61,6 @@ Route::middleware([EnsureOrchestrator::class, 'auth', EnsureInternalUser::class]
     ->name('admin.tenants.')
     ->group(function () {
         Route::get('/', AdminTenantsIndex::class)->name('index');
+        Route::get('/create', AdminTenantsCreate::class)->name('create');
         Route::get('/{tenant}', AdminTenantsShow::class)->name('show');
     });

@@ -8,9 +8,10 @@
         <div class="w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 text-center shadow-2xl backdrop-blur">
             @php
                 $tier = $tenant?->tier?->value ?? 'tier1';
+                $tier1Manual = $tier === 'tier1' && ! $tenant?->stripe_customer_id;
             @endphp
 
-            @if ($tier === 'tier1')
+            @if ($tier === 'tier1' && ! $tier1Manual)
                 <div class="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
                     <flux:icon name="check-circle" class="size-10" />
                 </div>
@@ -19,6 +20,16 @@
                 </h1>
                 <p class="mt-3 text-zinc-300">
                     {{ __('Your dedicated QuickSDR instance is spinning up right now. You\'ll get an email with your login link and first-time setup instructions within 10–15 minutes.') }}
+                </p>
+            @elseif ($tier1Manual)
+                <div class="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-cyan-500/10 text-cyan-400 ring-1 ring-cyan-500/30">
+                    <flux:icon name="envelope" class="size-10" />
+                </div>
+                <h1 class="text-2xl font-semibold text-white">
+                    {{ __('Thanks — we\'ll reach out to complete your setup') }}
+                </h1>
+                <p class="mt-3 text-zinc-300">
+                    {{ __('We got your signup. Matthew will email you a secure payment link and walk through kickoff within one business day. Your subdomain is reserved.') }}
                 </p>
             @elseif (in_array($tier, ['tier2', 'tier3']))
                 <div class="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-cyan-500/10 text-cyan-400 ring-1 ring-cyan-500/30">

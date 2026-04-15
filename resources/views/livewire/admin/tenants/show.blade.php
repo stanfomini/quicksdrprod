@@ -22,6 +22,9 @@
                 <flux:heading size="xl">{{ $tenant->subdomain }}.quicksdr.com</flux:heading>
                 <flux:badge size="sm" color="zinc">{{ $tenant->tier->label() }}</flux:badge>
                 <flux:badge size="sm" :color="$tenant->status->color()">{{ $tenant->status->label() }}</flux:badge>
+                @if ($tenant->dry_run)
+                    <flux:badge size="sm" color="amber" icon="beaker">dry-run</flux:badge>
+                @endif
             </div>
             <flux:text class="text-zinc-500">{{ $tenant->business_name }}</flux:text>
         </div>

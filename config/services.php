@@ -92,4 +92,8 @@ return [
         'calendar_booking_url' => env('GOOGLE_CALENDAR_BOOKING_URL'),
     ],
 
+    'provisioning' => [
+        'dry_run' => env('PROVISIONING_DRY_RUN', false),
+    ],
+
 ];

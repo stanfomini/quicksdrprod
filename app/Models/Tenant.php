@@ -19,6 +19,7 @@ class Tenant extends Model
     {
         return [
             'tier' => TenantTier::class,
+            'dry_run' => 'boolean',
             'status' => TenantStatus::class,
             'status_step' => 'int',
             'status_detail' => 'array',

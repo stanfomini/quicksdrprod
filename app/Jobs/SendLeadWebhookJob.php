@@ -20,6 +20,7 @@ class SendLeadWebhookJob implements ShouldQueue
     public function __construct(
         public string $url,
         public array $payload,
+        public ?string $secret = null,
     ) {}
 
     /**
@@ -33,9 +34,14 @@ class SendLeadWebhookJob implements ShouldQueue
     public function handle(): void
     {
         try {
-            $response = Http::acceptJson()
-                ->timeout(10)
-                ->post($this->url, $this->payload);
+            $client = Http::acceptJson()->timeout(10);
+
+            if ($this->secret) {
+                // The quick-claimstaker lead-intake endpoint validates this header.
+                $client = $client->withHeaders(['X-Webhook-Secret' => $this->secret]);
+            }
+
+            $response = $client->post($this->url, $this->payload);
 
             if (! $response->successful()) {
                 Log::warning('LeadWebhook non-2xx', [

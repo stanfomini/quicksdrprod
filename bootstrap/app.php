@@ -3,7 +3,7 @@
 use App\Http\Middleware\EnforceExportOnly;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureOrchestrator;
-use App\Http\Middleware\RequireTwoFactor;
+use App\Http\Middleware\RequireEmailOtp;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,15 +21,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'orchestrator' => EnsureOrchestrator::class,
             'internal-user' => EnsureInternalUser::class,
             'export-only' => EnforceExportOnly::class,
-            '2fa-required' => RequireTwoFactor::class,
+            'email-otp' => RequireEmailOtp::class,
         ]);
 
-        // Always apply EnforceExportOnly on tenant web requests so cancelled
-        // tenants get redirected to /export. On orchestrator it's a no-op
-        // (config('app.mode') !== 'tenant' short-circuits in the middleware).
+        // Global web middleware:
+        // - EnforceExportOnly redirects cancelled tenants to /export
+        // - RequireEmailOtp (production only) redirects authenticated users
+        //   to /email-code until they've completed the 6-digit email OTP.
         $middleware->web(append: [
             EnforceExportOnly::class,
-            RequireTwoFactor::class,
+            RequireEmailOtp::class,
         ]);
 
         // Stripe webhook must be CSRF-exempt.

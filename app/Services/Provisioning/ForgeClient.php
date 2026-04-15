@@ -108,6 +108,11 @@ class ForgeClient
         return null;
     }
 
+    public function getSite(int $serverId, int $siteId): Site
+    {
+        return $this->forge->site($serverId, $siteId);
+    }
+
     public function installGitRepository(int $serverId, int $siteId, string $repo, string $branch = 'main', string $provider = 'github'): void
     {
         $this->forge->installGitRepositoryOnSite($serverId, $siteId, [

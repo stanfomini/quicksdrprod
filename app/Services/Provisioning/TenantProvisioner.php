@@ -193,7 +193,7 @@ class TenantProvisioner
         }
 
         // Forge's API will 4xx if a repo is already installed. Check first.
-        $site = $this->forge->sdk()->site($tenant->forge_server_id, $tenant->forge_site_id);
+        $site = $this->forge->getSite($tenant->forge_server_id, $tenant->forge_site_id);
         if ($site->repository) {
             $tenant->recordStep(6, 'git repo already installed', ['repo' => $site->repository]);
 

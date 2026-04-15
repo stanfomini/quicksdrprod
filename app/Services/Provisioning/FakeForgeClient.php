@@ -72,6 +72,13 @@ class FakeForgeClient extends ForgeClient
         return null;
     }
 
+    public function getSite(int $serverId, int $siteId): Site
+    {
+        $this->log('getSite', compact('serverId', 'siteId'));
+
+        return $this->stubSite($siteId, "fake-site-{$siteId}");
+    }
+
     public function installGitRepository(int $serverId, int $siteId, string $repo, string $branch = 'main', string $provider = 'github'): void
     {
         $this->log('installGitRepository', compact('serverId', 'siteId', 'repo', 'branch', 'provider'));

@@ -31,6 +31,81 @@
         <flux:button variant="ghost" icon="arrow-left" :href="route('admin.tenants.index')" wire:navigate>Back</flux:button>
     </div>
 
+    @php
+        $stepLabels = [
+            1 => 'Starting',
+            2 => 'Validating subdomain + generating secrets',
+            3 => 'Creating DigitalOcean server (8–12 min)',
+            4 => 'Creating Cloudflare DNS records',
+            5 => 'Creating primary site on Forge',
+            6 => 'Installing Git repo',
+            7 => 'Creating Postgres database',
+            8 => 'Writing tenant .env file',
+            9 => 'Requesting Let\'s Encrypt SSL',
+            10 => 'Creating websocket site + SSL',
+            11 => 'Writing deploy script + deploying',
+            13 => 'Creating queue + Reverb daemons',
+            14 => 'Installing Python (AI transcription)',
+            15 => 'Setting up Reverb systemd service',
+            16 => 'Enabling scheduler (cron)',
+            17 => 'Seeding admin account',
+            18 => 'Emailing admin credentials',
+            19 => 'Posting PartnerStack conversion',
+            20 => 'Broadcasting TenantReady',
+            21 => 'Ready',
+        ];
+        $totalSteps = 22;
+        $currentStep = max(0, (int) $tenant->status_step);
+        $percent = min(100, (int) round(($currentStep / $totalSteps) * 100));
+        $currentLabel = $stepLabels[$currentStep] ?? '—';
+        $activeStatuses = [\App\Enums\TenantStatus::Pending, \App\Enums\TenantStatus::Provisioning];
+    @endphp
+
+    @if (in_array($tenant->status, $activeStatuses, true) || $tenant->status === \App\Enums\TenantStatus::Failed)
+        <flux:card class="flex flex-col gap-3">
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    @if ($tenant->status === \App\Enums\TenantStatus::Provisioning)
+                        <svg class="h-5 w-5 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                    @elseif ($tenant->status === \App\Enums\TenantStatus::Failed)
+                        <flux:icon name="exclamation-triangle" class="h-5 w-5 text-red-500" />
+                    @else
+                        <flux:icon name="clock" class="h-5 w-5 text-zinc-500" />
+                    @endif
+                    <div>
+                        <flux:heading size="lg">Step {{ $currentStep }} of {{ $totalSteps }} — {{ $currentLabel }}</flux:heading>
+                        <flux:text class="text-zinc-500 text-sm">
+                            @if ($tenant->status === \App\Enums\TenantStatus::Pending)
+                                Queued — click "Provision now" above to start.
+                            @elseif ($tenant->status === \App\Enums\TenantStatus::Failed)
+                                Provisioning failed at step {{ $currentStep }}. See log below.
+                            @else
+                                Live updates via Reverb; manual refresh if needed.
+                            @endif
+                        </flux:text>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-2xl font-semibold tabular-nums">{{ $percent }}%</div>
+                    @if ($tenant->forge_server_id)
+                        <a href="https://forge.laravel.com/servers/{{ $tenant->forge_server_id }}" target="_blank" class="text-xs text-blue-500 hover:underline">
+                            Forge server #{{ $tenant->forge_server_id }} ↗
+                        </a>
+                    @endif
+                </div>
+            </div>
+            <div class="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                <div
+                    class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500"
+                    style="width: {{ $percent }}%"
+                ></div>
+            </div>
+        </flux:card>
+    @endif
+
     <div class="flex flex-wrap items-center gap-2">
         @if ($tenant->status === \App\Enums\TenantStatus::Pending)
             <flux:modal.trigger name="provision-now">

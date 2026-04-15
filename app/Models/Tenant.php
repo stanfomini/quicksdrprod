@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\TenantStatus;
 use App\Enums\TenantTier;
+use App\Events\TenantStatusChanged;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -90,6 +91,15 @@ class Tenant extends Model
             'log' => array_slice($log, -100), // keep last 100 entries
         ];
         $this->save();
+
+        // Fire-and-forget broadcast so the admin UI can tick forward live
+        // during the 10+ minute provisioning pipeline. Ignore any failure —
+        // broadcasting is best-effort and must not block pipeline progress.
+        try {
+            broadcast(new TenantStatusChanged($this, $step, $message));
+        } catch (\Throwable) {
+            // swallow
+        }
     }
 
     public function markFailed(int $step, string $error): void

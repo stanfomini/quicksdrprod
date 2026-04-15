@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Enums\TenantStatus;
 use App\Enums\TenantTier;
 use App\Models\Tenant;
+use App\Services\LeadWebhookDispatcher;
 use App\Services\Provisioning\StripeCheckout;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -102,9 +103,30 @@ class Signup extends Component
             'status' => TenantStatus::Pending,
         ]);
 
-        $url = $checkout->createSession($tenant);
+        app(LeadWebhookDispatcher::class)->dispatch([
+            'tier' => $tenant->tier->value,
+            'business_name' => $tenant->business_name,
+            'admin_name' => $tenant->admin_name,
+            'admin_email' => $tenant->admin_email,
+            'admin_phone' => $tenant->admin_phone,
+            'company_website' => $tenant->company_website,
+            'role_title' => $tenant->role_title,
+            'subdomain' => $tenant->subdomain,
+        ]);
 
-        return $this->redirect($url);
+        if ($tenant->tier === TenantTier::Tier1) {
+            $url = $checkout->createSession($tenant);
+
+            return $this->redirect($url);
+        }
+
+        $calendar = config('services.google.calendar_booking_url');
+
+        if ($calendar) {
+            $this->js('window.open('.json_encode($calendar).', "_blank")');
+        }
+
+        return $this->redirect(route('signup.pending', ['tenant' => $tenant->id]));
     }
 
     public function render()

@@ -46,6 +46,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/export', TenantExport::class)->name('tenant.export');
 });
 
+// Email OTP step — second factor for authenticated users on production.
+// Access to this route is granted by the RequireEmailOtp middleware
+// (which whitelists /email-code to avoid a redirect loop).
+Route::middleware(['auth'])->group(function () {
+    Route::get('/email-code', App\Livewire\EmailOtp::class)->name('email-otp');
+});
+
 Route::middleware([EnsureOrchestrator::class, 'auth', EnsureInternalUser::class])
     ->prefix('admin/tenants')
     ->name('admin.tenants.')

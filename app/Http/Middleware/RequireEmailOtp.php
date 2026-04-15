@@ -24,6 +24,36 @@ class RequireEmailOtp
      */
     private const TTL_SECONDS = 86400; // 24h
 
+    /**
+     * Public-facing routes that must remain reachable even for logged-in
+     * users without OTP — marketing pages, signup funnel, contact forms,
+     * webhooks, OTP / logout flow itself, and Livewire's internal endpoints.
+     *
+     * @var array<int, string>
+     */
+    private const PUBLIC_PATTERNS = [
+        '/',
+        'about',
+        'contact',
+        'contact-sales',
+        'signup',
+        'signup/*',
+        'admin-signup/*',
+        'stripe/webhook',
+        'up',
+        'login',
+        'logout',
+        'register',
+        'forgot-password',
+        'reset-password/*',
+        'email/verify',
+        'email/verify/*',
+        'verify-email',
+        'email-code',
+        'email-code/*',
+        'livewire/*',
+    ];
+
     public function handle(Request $request, Closure $next): Response
     {
         if (! app()->environment('production') || ! $request->user()) {
@@ -36,9 +66,9 @@ class RequireEmailOtp
             return $next($request);
         }
 
-        // Allow the OTP page itself + logout + Livewire internal requests
-        // through so the flow can complete.
-        if ($request->is('email-code', 'email-code/*', 'logout', 'livewire/*')) {
+        // Marketing + signup + auth-flow routes: always allowed, even when
+        // the user is logged in. OTP only gates post-login app routes.
+        if ($request->is(...self::PUBLIC_PATTERNS)) {
             return $next($request);
         }
 

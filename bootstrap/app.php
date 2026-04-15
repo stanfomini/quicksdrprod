@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // - EnforceExportOnly redirects cancelled tenants to /export
         // - RequireEmailOtp (production only) redirects authenticated users
         //   to /email-code until they've completed the 6-digit email OTP.
+        //   Marketing pages are whitelisted inside the middleware itself.
         $middleware->web(append: [
             EnforceExportOnly::class,
             RequireEmailOtp::class,

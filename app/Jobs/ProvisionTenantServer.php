@@ -121,8 +121,16 @@ class ProvisionTenantServer implements ShouldQueue
             $t->status_step < 18 => $this->step(18, fn () => $p->seedAdmin($t), releaseSeconds: 30),
 
             $t->status_step < 19 => $this->step(19, function () use ($t) {
-                Mail::to($t->admin_email)->queue(new TenantCredentials($t));
-                $t->recordStep(18, 'credentials email queued');
+                if ($t->dry_run || config('services.provisioning.dry_run')) {
+                    Log::info('[dry-run] would queue TenantCredentials email', [
+                        'tenant_id' => $t->id,
+                        'admin_email' => $t->admin_email,
+                    ]);
+                    $t->recordStep(18, 'credentials email skipped (dry-run)');
+                } else {
+                    Mail::to($t->admin_email)->queue(new TenantCredentials($t));
+                    $t->recordStep(18, 'credentials email queued');
+                }
             }, releaseSeconds: 1),
 
             $t->status_step < 20 => $this->step(20, fn () => $p->notifyPartnerstack($t), releaseSeconds: 1),

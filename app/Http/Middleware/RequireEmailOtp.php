@@ -3,8 +3,8 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use DateTimeInterface;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -74,7 +74,15 @@ class RequireEmailOtp
 
         $verifiedAt = $request->session()->get('email_otp_verified_at');
 
-        if ($verifiedAt instanceof Carbon && now()->diffInSeconds($verifiedAt) < self::TTL_SECONDS) {
+        // Stored as unix int by EmailOtp::verify(). Older sessions may still
+        // hold a Date instance from before that change — accept both.
+        $verifiedTs = match (true) {
+            is_int($verifiedAt) => $verifiedAt,
+            $verifiedAt instanceof DateTimeInterface => $verifiedAt->getTimestamp(),
+            default => null,
+        };
+
+        if ($verifiedTs !== null && (time() - $verifiedTs) < self::TTL_SECONDS) {
             return $next($request);
         }
 

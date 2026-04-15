@@ -86,7 +86,10 @@ class EmailOtp extends Component
         Cache::forget($this->cacheKey());
         RateLimiter::clear($attemptsKey);
 
-        session()->put('email_otp_verified_at', now());
+        // Store as unix int — Date::use(CarbonImmutable) makes now() return
+        // a CarbonImmutable, which fails the middleware's instanceof check
+        // on the next request and bounces us straight back to /email-code.
+        session()->put('email_otp_verified_at', now()->getTimestamp());
 
         $intended = session()->pull('email_otp_intended', '/claimstaker/dashboard');
         $this->redirect($intended);

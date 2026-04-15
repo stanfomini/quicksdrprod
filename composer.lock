@@ -5338,12 +5338,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:stanfomini/quick-claimstaker.git",
-                "reference": "4abc2e8842618908bdda0f5bd3d320452ec56f45"
+                "reference": "f6e3b43400bc05c7ff8be6e4c3913fdc2bb59d5c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stanfomini/quick-claimstaker/zipball/4abc2e8842618908bdda0f5bd3d320452ec56f45",
-                "reference": "4abc2e8842618908bdda0f5bd3d320452ec56f45",
+                "url": "https://api.github.com/repos/stanfomini/quick-claimstaker/zipball/f6e3b43400bc05c7ff8be6e4c3913fdc2bb59d5c",
+                "reference": "f6e3b43400bc05c7ff8be6e4c3913fdc2bb59d5c",
                 "shasum": ""
             },
             "require": {
@@ -5384,7 +5384,7 @@
                 "source": "https://github.com/stanfomini/quick-claimstaker/tree/multiline",
                 "issues": "https://github.com/stanfomini/quick-claimstaker/issues"
             },
-            "time": "2026-04-15T01:49:08+00:00"
+            "time": "2026-04-15T02:31:29+00:00"
         },
         {
             "name": "stripe/stripe-php",

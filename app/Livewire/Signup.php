@@ -140,9 +140,9 @@ class Signup extends Component
                 TenantTier::Tier3,
             ],
             'tierBenefits' => [
-                'tier1' => 'Self-serve — you handle Twilio/AI setup',
-                'tier2' => 'Done-for-you — we set up Twilio A2P + AI + call flows',
-                'tier3' => 'Multi-location + SDR training + everything in Tier 2',
+                'tier1' => 'Self-serve — you handle Twilio/AI setup. 3-day free trial.',
+                'tier2' => 'Done-for-you — we set up Twilio A2P + AI + call flows. First 2 months waived.',
+                'tier3' => 'Multi-location + SDR training + everything in Tier 2. First 2 months waived.',
             ],
         ])->layout('layouts.signup');
     }

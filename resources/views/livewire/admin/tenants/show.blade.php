@@ -387,6 +387,107 @@
         </flux:card>
     </div>
 
+    {{-- Billing --}}
+    <flux:card class="flex flex-col gap-4">
+        <div class="flex items-center justify-between gap-3">
+            <flux:heading size="lg">Billing</flux:heading>
+            @if ($tenant->stripe_customer_id)
+                <div class="flex gap-2">
+                    <flux:button wire:click="openBillingPortal" variant="ghost" size="sm" icon="link">
+                        <span wire:loading.remove wire:target="openBillingPortal">Copy customer portal link</span>
+                        <span wire:loading wire:target="openBillingPortal">Generating…</span>
+                    </flux:button>
+                    <flux:button variant="ghost" size="sm" icon="arrow-top-right-on-square" :href="'https://dashboard.stripe.com/customers/' . $tenant->stripe_customer_id" target="_blank">Open in Stripe</flux:button>
+                </div>
+            @endif
+        </div>
+
+        @if (! $tenant->stripe_customer_id)
+            <flux:text class="text-zinc-500">
+                No Stripe customer yet. @if ($tenant->tier !== \App\Enums\TenantTier::Tier4)Generate a payment link above to charge this tenant.@else Use "Create hourly invoice" above to bill consulting hours.@endif
+            </flux:text>
+        @else
+            @php($sub = $this->subscription)
+            @if ($sub)
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div class="rounded bg-zinc-800/40 p-3">
+                        <div class="text-xs text-zinc-500">Status</div>
+                        <div class="mt-1 flex items-center gap-2">
+                            <flux:badge size="sm" :color="match ($sub['status']) { 'active' => 'green', 'trialing' => 'blue', 'past_due' => 'amber', 'canceled' => 'red', default => 'zinc' }">
+                                {{ str_replace('_', ' ', $sub['status']) }}
+                            </flux:badge>
+                            @if (! empty($sub['cancel_at_period_end']))
+                                <flux:badge size="sm" color="amber">cancelling</flux:badge>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="rounded bg-zinc-800/40 p-3">
+                        <div class="text-xs text-zinc-500">
+                            @if ($sub['status'] === 'trialing' && $sub['trial_end'])
+                                Trial ends
+                            @else
+                                Next invoice
+                            @endif
+                        </div>
+                        <div class="mt-1 text-sm font-medium">
+                            @php($when = $sub['trial_end'] ?? $sub['current_period_end'])
+                            {{ $when ? \Illuminate\Support\Carbon::createFromTimestamp($when)->toDayDateTimeString() : '—' }}
+                        </div>
+                    </div>
+                    <div class="rounded bg-zinc-800/40 p-3">
+                        <div class="text-xs text-zinc-500">Amount</div>
+                        <div class="mt-1 text-sm font-medium">
+                            @if (! empty($sub['amount_cents']))
+                                ${{ number_format($sub['amount_cents'] / 100, 2) }}/mo
+                            @else
+                                —
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @else
+                <flux:text class="text-zinc-500">Active Stripe customer, no subscription yet (e.g. Tier 4 consulting uses one-time invoices).</flux:text>
+            @endif
+
+            @php($invs = $this->invoices)
+            @if (count($invs) > 0)
+                <flux:separator />
+                <flux:heading size="sm">Invoices</flux:heading>
+                <flux:table>
+                    <flux:table.columns>
+                        <flux:table.column>Date</flux:table.column>
+                        <flux:table.column>Number</flux:table.column>
+                        <flux:table.column>Amount</flux:table.column>
+                        <flux:table.column>Status</flux:table.column>
+                        <flux:table.column></flux:table.column>
+                    </flux:table.columns>
+                    <flux:table.rows>
+                        @foreach ($invs as $inv)
+                            <flux:table.row>
+                                <flux:table.cell>{{ \Illuminate\Support\Carbon::createFromTimestamp($inv['created'])->format('M j, Y') }}</flux:table.cell>
+                                <flux:table.cell class="font-mono text-xs">{{ $inv['number'] ?? '—' }}</flux:table.cell>
+                                <flux:table.cell>${{ number_format($inv['amount_paid'] / 100, 2) }}</flux:table.cell>
+                                <flux:table.cell>
+                                    <flux:badge size="sm" :color="match ($inv['status']) { 'paid' => 'green', 'open' => 'amber', 'uncollectible', 'void' => 'red', default => 'zinc' }">{{ $inv['status'] ?? '—' }}</flux:badge>
+                                </flux:table.cell>
+                                <flux:table.cell class="text-right">
+                                    @if (! empty($inv['hosted_invoice_url']))
+                                        <a href="{{ $inv['hosted_invoice_url'] }}" target="_blank" class="text-xs text-blue-500 hover:underline">View ↗</a>
+                                    @endif
+                                    @if (! empty($inv['invoice_pdf']))
+                                        <a href="{{ $inv['invoice_pdf'] }}" target="_blank" class="ml-2 text-xs text-blue-500 hover:underline">PDF</a>
+                                    @endif
+                                </flux:table.cell>
+                            </flux:table.row>
+                        @endforeach
+                    </flux:table.rows>
+                </flux:table>
+            @else
+                <flux:text class="text-zinc-500 text-sm">No invoices yet.</flux:text>
+            @endif
+        @endif
+    </flux:card>
+
     {{-- Stats --}}
     <flux:card class="flex flex-col gap-4">
         <flux:heading size="lg">Recent activity (last 48 ingests)</flux:heading>

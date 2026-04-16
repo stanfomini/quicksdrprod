@@ -56,6 +56,9 @@ class RequireEmailOtp
         // (e.g. /livewire-5b92011c/update) to defeat naive scanners. Match
         // any livewire-*/update or livewire-*/livewire.js too.
         'livewire-*',
+        // Tenant customers hit this with an HMAC-signed URL to reach their
+        // Stripe Billing Portal; they have no quicksdr.com login.
+        'billing/portal/*',
     ];
 
     public function handle(Request $request, Closure $next): Response

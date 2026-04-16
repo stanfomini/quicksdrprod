@@ -47,6 +47,22 @@ enum TenantTier: string
     }
 
     /**
+     * Trial length in days (used as Stripe's trial_period_days). Tier 1 gets a
+     * 3-day evaluation trial. Tiers 2/3 include the first 2 months "waived"
+     * as part of the setup package — billed as a 60-day trial so the
+     * customer only pays the setup fee up front, then monthly billing
+     * starts on day 61.
+     */
+    public function freeTrialDays(): int
+    {
+        return match ($this) {
+            self::Tier1 => 3,
+            self::Tier2, self::Tier3 => 60,
+            self::Tier4 => 0,
+        };
+    }
+
+    /**
      * DigitalOcean droplet size slug for Forge server creation.
      */
     public function serverSize(): string

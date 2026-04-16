@@ -7,6 +7,7 @@ use App\Jobs\DestroyTenantServer;
 use App\Jobs\ProvisionTenantServer;
 use App\Models\Tenant;
 use App\Services\Provisioning\StripeCheckout;
+use App\Services\Provisioning\TenantBilling;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Attributes\Computed;
@@ -294,6 +295,82 @@ class Show extends Component
     public function log(): array
     {
         return $this->tenant->status_detail['log'] ?? [];
+    }
+
+    /**
+     * Live-pulled Stripe subscription data for this tenant. Cached per
+     * component render — no polling. Returns null on error or missing sub.
+     *
+     * @return array<string, mixed>|null
+     */
+    #[Computed]
+    public function subscription(): ?array
+    {
+        if (! $this->tenant->stripe_subscription_id) {
+            return null;
+        }
+
+        try {
+            return app(TenantBilling::class)->subscription($this->tenant);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to fetch Stripe subscription', [
+                'tenant_id' => $this->tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    #[Computed]
+    public function invoices(): array
+    {
+        if (! $this->tenant->stripe_customer_id) {
+            return [];
+        }
+
+        try {
+            return app(TenantBilling::class)->invoices($this->tenant, 10);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to fetch Stripe invoices', [
+                'tenant_id' => $this->tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Generate a Stripe Billing Portal URL for this tenant's customer.
+     * Matthew can copy it to share with the customer (single-use, ~24h).
+     */
+    public function openBillingPortal(): void
+    {
+        if (! $this->tenant->stripe_customer_id) {
+            $this->dispatch('toast', type: 'warning', message: 'No Stripe customer yet — generate a payment link first.');
+
+            return;
+        }
+
+        try {
+            $url = app(TenantBilling::class)->billingPortalUrl(
+                $this->tenant,
+                returnUrl: route('admin.tenants.show', $this->tenant),
+            );
+
+            $this->dispatch('copy-to-clipboard', text: $url);
+            $this->dispatch('toast', type: 'success', message: 'Billing portal URL copied to clipboard.');
+        } catch (\Throwable $e) {
+            Log::error('openBillingPortal failed', [
+                'tenant_id' => $this->tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+            $this->dispatch('toast', type: 'danger', message: 'Stripe error: '.$e->getMessage());
+        }
     }
 
     #[Computed]

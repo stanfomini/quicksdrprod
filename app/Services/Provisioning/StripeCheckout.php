@@ -119,9 +119,9 @@ class StripeCheckout
             ],
         ];
 
-        if ($tenant->tier->freeTrialMonths() > 0) {
+        if ($tenant->tier->freeTrialDays() > 0) {
             $params['subscription_data'] = [
-                'trial_period_days' => $tenant->tier->freeTrialMonths() * 30,
+                'trial_period_days' => $tenant->tier->freeTrialDays(),
                 'metadata' => [
                     'tenant_id' => (string) $tenant->id,
                     'tier' => $tenant->tier->value,

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AdminSignupController;
 use App\Http\Controllers\SignupSuccessController;
 use App\Http\Controllers\StripeWebhookController;
+use App\Http\Controllers\TenantBillingPortalController;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureOrchestrator;
 use App\Livewire\Admin\Tenants\Create as AdminTenantsCreate;
@@ -27,6 +28,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
+
+// Tenant-side billing bounce. A tenant admin clicks "Manage billing" on
+// their tenant app → HMAC-signed URL hits the orchestrator → Stripe
+// Customer Portal session → redirect to Stripe's hosted page. No login
+// required on quicksdr.com — the HMAC signature is the authentication.
+Route::get('/billing/portal/{tenant}', TenantBillingPortalController::class)
+    ->name('billing.portal')
+    ->middleware(EnsureOrchestrator::class);
 
 Route::middleware([EnsureOrchestrator::class])->group(function () {
     Route::get('/signup', Signup::class)->name('signup');

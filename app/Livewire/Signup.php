@@ -104,14 +104,16 @@ class Signup extends Component
         ]);
 
         app(LeadWebhookDispatcher::class)->dispatch([
-            'tier' => $tenant->tier->value,
-            'business_name' => $tenant->business_name,
-            'admin_name' => $tenant->admin_name,
-            'admin_email' => $tenant->admin_email,
-            'admin_phone' => $tenant->admin_phone,
-            'company_website' => $tenant->company_website,
-            'role_title' => $tenant->role_title,
-            'subdomain' => $tenant->subdomain,
+            'first_name' => $tenant->admin_name,
+            'phone' => $tenant->admin_phone,
+            'email' => $tenant->admin_email,
+            'custom_fields' => [
+                'tier' => $tenant->tier->value,
+                'business_name' => $tenant->business_name,
+                'company_website' => $tenant->company_website,
+                'role_title' => $tenant->role_title,
+                'subdomain' => $tenant->subdomain,
+            ],
         ]);
 
         if ($tenant->tier === TenantTier::Tier1 && $checkout->isConfigured(TenantTier::Tier1)) {

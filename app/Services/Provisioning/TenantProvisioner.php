@@ -479,43 +479,18 @@ class TenantProvisioner
 
     public function seedAdmin(Tenant $tenant): void
     {
-        // Use a one-shot recipe to exec the artisan command on the tenant
-        // server. The command prints the tokenized URL to stdout, which
-        // Forge captures in the recipe output. We fetch it back from the
-        // recipe execution record.
-        $sitePath = "/home/forge/{$tenant->primaryHost()}/current";
-        $script = <<<BASH
-        cd {$sitePath}
-        sudo -u forge php artisan claimstaker:invite-admin --email={$tenant->admin_email} --name="{$tenant->admin_name}" --no-interaction
-        BASH;
-
-        $recipeName = "tenant-admin-invite-{$tenant->subdomain}-".time();
-        $recipeId = $this->ensureRecipe($recipeName, $script);
-        $this->forge->runRecipe($recipeId, [$tenant->forge_server_id]);
-
-        // The admin_signup_url will be populated by the claimstaker package
-        // via a webhook back to quicksdr.com — OR we parse the recipe output
-        // after it completes (see ProvisionTenantServer job). For now, set
-        // a placeholder; the job will overwrite.
-        $tenant->recordStep(17, 'admin invite recipe kicked', ['recipe_id' => $recipeId]);
-    }
-
-    /**
-     * Capture the admin signup URL from the tenant server's DB. Runs after
-     * seedAdmin has had time to complete. Uses executeSiteCommand to read the
-     * latest token from admin_signup_tokens and constructs the full URL.
-     */
-    public function captureAdminSignupUrl(Tenant $tenant): void
-    {
         if (! $tenant->forge_server_id || ! $tenant->forge_site_id) {
-            $tenant->recordStep(17, 'cannot capture admin URL — no server/site');
-
-            return;
+            throw new RuntimeException('No server/site to seed admin on');
         }
 
-        $cmd = "php artisan tinker --execute=\""
-            ."\\\\\\$t = DB::table('admin_signup_tokens')->latest('id')->first(); "
-            ."echo \\\\\\$t ? url('/claimstaker/admin-signup/' . \\\\\\$t->token) : 'NO_TOKEN';\"";
+        // Run invite-admin via executeSiteCommand (not a recipe) so we can
+        // capture the command's output — it prints the tokenized URL to
+        // stdout which we parse out in step 18 (email) and persist on the
+        // tenant as admin_signup_url. --no-email because MAIL_MAILER=log
+        // on fresh tenants; the orchestrator sends the real email.
+        // 168h = 7 days of validity, plenty of buffer for the admin to act.
+        $email = escapeshellarg($tenant->admin_email);
+        $cmd = "php artisan claimstaker:invite-admin {$email} --no-email --hours=168";
 
         $commandId = $this->forge->executeSiteCommand(
             $tenant->forge_server_id,
@@ -523,7 +498,7 @@ class TenantProvisioner
             $cmd,
         );
 
-        $tenant->recordStep(17, 'admin URL capture command dispatched', ['command_id' => $commandId]);
+        $tenant->recordStep(17, 'admin invite dispatched', ['command_id' => $commandId]);
     }
 
     public function readAdminSignupUrl(Tenant $tenant, int $commandId): ?string

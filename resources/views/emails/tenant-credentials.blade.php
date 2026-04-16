@@ -1,39 +1,33 @@
-# Your QuickSDR is ready, {{ $tenant->admin_name }}
+@component('mail::message')
+# Welcome to QuickSDR, {{ $tenant->admin_name }}
 
-Welcome aboard. Your dedicated QuickSDR instance is now live.
+Your dedicated dialer is live at **[{{ $appUrl }}]({{ $appUrl }})**.
 
-## Your URLs
+**Next step:** click the button below to set up your admin password. Takes about 30 seconds. This is a one-time setup link — you won't need it again.
 
-- **App:** [{{ $appUrl }}]({{ $appUrl }})
-- **WebSocket:** `{{ $wsUrl }}` (no need to visit — this powers real-time agent connectivity)
-
-## Get started
-
-Click the button below to create your admin account and set your password.
-
-@component('mail::button', ['url' => $loginUrl])
-Set up your account
+@component('mail::button', ['url' => $loginUrl, 'color' => 'success'])
+Set up my account
 @endcomponent
 
-**If the button doesn't work**, copy and paste this link into your browser:
+**Button not working?** Copy and paste this link into your browser:
 
 {{ $loginUrl }}
 
-## What's next
+---
 
-After you log in, head to **Settings** in the sidebar to add:
+## Once you're in
 
-- **Twilio credentials** — for placing calls and receiving SMS. If you don't have a Twilio A2P registration yet, no worries: reach out and we'll help you get set up.
-- **AI provider key** — xAI (Grok), Anthropic, OpenAI, or any of the supported providers. Needed for call transcription and lead scoring.
+Head to **Settings** in the sidebar to add:
 
-You can invite your team (SDRs, managers) from the **Agents** page once you're in.
+- **Twilio credentials** — for placing calls and receiving SMS. No A2P registration yet? Reply to this email and we'll help you get set up.
+- **AI provider key** — xAI, Anthropic, or OpenAI, for call transcription and lead scoring.
 
-## Support
+Then invite your team (SDRs, managers) from the **Agents** page and start dialing.
 
-If anything looks off or you hit a wall:
+---
 
-- Reply to this email
-- Or call us at **(757) 343-3032**
+**Questions or stuck?** Reply to this email or call **(757) 343-3032** — we'll get you unblocked fast.
 
-Thanks,
+— Matthew
 QuickSDR
+@endcomponent

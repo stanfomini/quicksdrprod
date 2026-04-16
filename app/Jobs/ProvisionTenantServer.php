@@ -171,19 +171,34 @@ class ProvisionTenantServer implements ShouldQueue
             return;
         }
 
-        try {
-            $p->captureAdminSignupUrl($t);
-            $detail = $t->status_detail ?? [];
-            $commandId = $detail['log'][array_key_last($detail['log'])]['command_id'] ?? null;
+        // seedAdmin (step 17) dispatched the invite-admin command and
+        // recorded its command_id. Scan the log backward to find it.
+        $commandId = null;
+        foreach (array_reverse($t->status_detail['log'] ?? []) as $entry) {
+            if (! empty($entry['command_id'])) {
+                $commandId = (int) $entry['command_id'];
+                break;
+            }
+        }
 
-            if ($commandId) {
-                sleep(5);
-                $url = $p->readAdminSignupUrl($t, (int) $commandId);
-                if ($url) {
-                    $t->admin_signup_url = $url;
-                    $t->save();
-                    Log::info('Captured admin signup URL', ['tenant_id' => $t->id, 'url' => $url]);
-                }
+        if (! $commandId) {
+            Log::warning('No command_id found for admin-invite capture', ['tenant_id' => $t->id]);
+
+            return;
+        }
+
+        try {
+            $url = $p->readAdminSignupUrl($t, $commandId);
+
+            if ($url) {
+                $t->admin_signup_url = $url;
+                $t->save();
+                Log::info('Captured admin signup URL', ['tenant_id' => $t->id]);
+            } else {
+                Log::warning('admin-invite output did not contain a URL', [
+                    'tenant_id' => $t->id,
+                    'command_id' => $commandId,
+                ]);
             }
         } catch (\Throwable $e) {
             Log::warning('Failed to capture admin signup URL — email will use /login fallback', [

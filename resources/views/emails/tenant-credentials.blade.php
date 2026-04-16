@@ -3,15 +3,17 @@
 
 Your dedicated dialer is live at **[{{ $appUrl }}]({{ $appUrl }})**.
 
-**Next step:** click the button below to set up your admin password. Takes about 30 seconds. This is a one-time setup link — you won't need it again.
+**Next step:** click the button below to set your password. Takes about 30 seconds. Your admin account is already created — this link just lets you choose a password.
 
 @component('mail::button', ['url' => $loginUrl, 'color' => 'success'])
-Set up my account
+Set my password
 @endcomponent
 
 **Button not working?** Copy and paste this link into your browser:
 
 {{ $loginUrl }}
+
+This link is valid for 60 minutes. If it expires, go to **[{{ $appUrl }}/forgot-password]({{ $appUrl }}/forgot-password)** and request a new one — your account stays ready.
 
 ---
 

@@ -492,14 +492,14 @@ class TenantProvisioner
             throw new RuntimeException('No server/site to seed admin on');
         }
 
-        // Run invite-admin via executeSiteCommand (not a recipe) so we can
-        // capture the command's output — it prints the tokenized URL to
-        // stdout which we parse out in step 18 (email) and persist on the
-        // tenant as admin_signup_url. --no-email because MAIL_MAILER=log
-        // on fresh tenants; the orchestrator sends the real email.
-        // 168h = 7 days of validity, plenty of buffer for the admin to act.
+        // create-admin upsers the User + Agent(role=admin) directly and prints
+        // a password-reset URL to stdout (RESET_URL=https://...) which the
+        // orchestrator captures in step 18 and emails to the admin. We don't
+        // ask the tenant to send the email itself because MAIL_MAILER=log on
+        // fresh tenants — the orchestrator has the real SMTP credentials.
         $email = escapeshellarg($tenant->admin_email);
-        $cmd = "php artisan claimstaker:invite-admin {$email} --no-email --hours=168";
+        $name = escapeshellarg($tenant->admin_name ?: $tenant->admin_email);
+        $cmd = "php artisan claimstaker:create-admin {$email} {$name} --with-reset-url";
 
         $commandId = $this->forge->executeSiteCommand(
             $tenant->forge_server_id,
@@ -507,7 +507,7 @@ class TenantProvisioner
             $cmd,
         );
 
-        $tenant->recordStep(17, 'admin invite dispatched', ['command_id' => $commandId]);
+        $tenant->recordStep(17, 'admin create dispatched', ['command_id' => $commandId]);
     }
 
     public function readAdminSignupUrl(Tenant $tenant, int $commandId): ?string
@@ -518,10 +518,18 @@ class TenantProvisioner
             $commandId,
         );
 
-        if (! $output || str_contains($output, 'NO_TOKEN')) {
+        if (! $output) {
             return null;
         }
 
+        // Password-reset URL printed by claimstaker:create-admin.
+        if (preg_match('#RESET_URL=(https?://\S+)#', $output, $m)) {
+            return $m[1];
+        }
+
+        // Legacy fallback: old invite-admin command prints the signup URL
+        // alone on its last line. Retained so old tenants mid-provisioning
+        // still complete gracefully after the orchestrator upgrade.
         if (preg_match('#(https?://[^\s]+/claimstaker/admin-signup/[a-zA-Z0-9]+)#', $output, $m)) {
             return $m[1];
         }

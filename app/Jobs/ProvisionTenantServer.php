@@ -120,16 +120,18 @@ class ProvisionTenantServer implements ShouldQueue
 
             $t->status_step < 18 => $this->step(18, fn () => $p->seedAdmin($t), releaseSeconds: 30),
 
-            $t->status_step < 19 => $this->step(19, function () use ($t) {
+            $t->status_step < 19 => $this->step(19, function () use ($p, $t) {
                 if ($t->dry_run || config('services.provisioning.dry_run')) {
                     Log::info('[dry-run] would queue TenantCredentials email', [
                         'tenant_id' => $t->id,
                         'admin_email' => $t->admin_email,
                     ]);
+                    $t->admin_signup_url = $t->appUrl().'/claimstaker/admin-signup/DRY_RUN_TOKEN';
                     $t->recordStep(18, 'credentials email skipped (dry-run)');
                 } else {
-                    Mail::to($t->admin_email)->queue(new TenantCredentials($t));
-                    $t->recordStep(18, 'credentials email queued');
+                    $this->captureAdminUrl($p, $t);
+                    Mail::to($t->admin_email)->send(new TenantCredentials($t));
+                    $t->recordStep(18, 'credentials email sent');
                 }
             }, releaseSeconds: 1),
 
@@ -161,6 +163,34 @@ class ProvisionTenantServer implements ShouldQueue
         }
 
         $this->release($releaseSeconds);
+    }
+
+    private function captureAdminUrl(TenantProvisioner $p, Tenant $t): void
+    {
+        if ($t->admin_signup_url) {
+            return;
+        }
+
+        try {
+            $p->captureAdminSignupUrl($t);
+            $detail = $t->status_detail ?? [];
+            $commandId = $detail['log'][array_key_last($detail['log'])]['command_id'] ?? null;
+
+            if ($commandId) {
+                sleep(5);
+                $url = $p->readAdminSignupUrl($t, (int) $commandId);
+                if ($url) {
+                    $t->admin_signup_url = $url;
+                    $t->save();
+                    Log::info('Captured admin signup URL', ['tenant_id' => $t->id, 'url' => $url]);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to capture admin signup URL — email will use /login fallback', [
+                'tenant_id' => $t->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function pollServerReady(TenantProvisioner $p, $t): void

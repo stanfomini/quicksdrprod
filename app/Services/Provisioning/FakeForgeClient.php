@@ -240,6 +240,21 @@ class FakeForgeClient extends ForgeClient
         $this->log('enableScheduler', compact('serverId', 'command'));
     }
 
+    public function executeSiteCommand(int $serverId, int $siteId, string $command): int
+    {
+        $id = $this->stableId('cmd', "{$serverId}:{$siteId}:{$command}");
+        $this->log('executeSiteCommand', compact('serverId', 'siteId', 'command', 'id'));
+
+        return $id;
+    }
+
+    public function getSiteCommandOutput(int $serverId, int $siteId, int $commandId): ?string
+    {
+        $this->log('getSiteCommandOutput', compact('serverId', 'siteId', 'commandId'));
+
+        return "Signup URL: https://fake-tenant.quicksdr.com/claimstaker/admin-signup/FAKE_TOKEN_DRY_RUN";
+    }
+
     public function destroyServer(int $serverId): void
     {
         $this->log('destroyServer', compact('serverId'));

@@ -270,6 +270,24 @@ class ForgeClient
         ]);
     }
 
+    public function executeSiteCommand(int $serverId, int $siteId, string $command): int
+    {
+        $result = $this->forge->executeSiteCommand($serverId, $siteId, ['command' => $command]);
+
+        return $result->id;
+    }
+
+    public function getSiteCommandOutput(int $serverId, int $siteId, int $commandId): ?string
+    {
+        $commands = $this->forge->getSiteCommand($serverId, $siteId, $commandId);
+
+        if (empty($commands)) {
+            return null;
+        }
+
+        return $commands[0]?->output;
+    }
+
     public function destroyServer(int $serverId): void
     {
         $this->forge->deleteServer($serverId);

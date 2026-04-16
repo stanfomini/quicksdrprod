@@ -500,6 +500,51 @@ class TenantProvisioner
         $tenant->recordStep(17, 'admin invite recipe kicked', ['recipe_id' => $recipeId]);
     }
 
+    /**
+     * Capture the admin signup URL from the tenant server's DB. Runs after
+     * seedAdmin has had time to complete. Uses executeSiteCommand to read the
+     * latest token from admin_signup_tokens and constructs the full URL.
+     */
+    public function captureAdminSignupUrl(Tenant $tenant): void
+    {
+        if (! $tenant->forge_server_id || ! $tenant->forge_site_id) {
+            $tenant->recordStep(17, 'cannot capture admin URL — no server/site');
+
+            return;
+        }
+
+        $cmd = "php artisan tinker --execute=\""
+            ."\\\\\\$t = DB::table('admin_signup_tokens')->latest('id')->first(); "
+            ."echo \\\\\\$t ? url('/claimstaker/admin-signup/' . \\\\\\$t->token) : 'NO_TOKEN';\"";
+
+        $commandId = $this->forge->executeSiteCommand(
+            $tenant->forge_server_id,
+            $tenant->forge_site_id,
+            $cmd,
+        );
+
+        $tenant->recordStep(17, 'admin URL capture command dispatched', ['command_id' => $commandId]);
+    }
+
+    public function readAdminSignupUrl(Tenant $tenant, int $commandId): ?string
+    {
+        $output = $this->forge->getSiteCommandOutput(
+            $tenant->forge_server_id,
+            $tenant->forge_site_id,
+            $commandId,
+        );
+
+        if (! $output || str_contains($output, 'NO_TOKEN')) {
+            return null;
+        }
+
+        if (preg_match('#(https?://[^\s]+/claimstaker/admin-signup/[a-zA-Z0-9]+)#', $output, $m)) {
+            return $m[1];
+        }
+
+        return null;
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Step 18: credentials email (dispatched as queued Mailable by the job)
     // ─────────────────────────────────────────────────────────────

@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Enums\TenantStatus;
 use App\Jobs\ProvisionTenantServer;
+use App\Mail\PaymentFailed;
+use App\Mail\TrialWillEnd;
 use App\Models\Tenant;
 use App\Services\Provisioning\TenantSubscriptionSyncer;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Cashier\Http\Controllers\WebhookController as CashierWebhookController;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -210,13 +214,16 @@ class StripeWebhookController extends CashierWebhookController
     }
 
     /**
-     * Handle a failed invoice payment. Log only — grace-period handling
-     * comes in a later phase.
+     * Handle a failed invoice payment. Emails the tenant admin with a link
+     * to update their card. Stripe drives the retry schedule and ultimate
+     * cancellation; when it gives up it fires customer.subscription.deleted
+     * which flips the tenant to ExportOnly via handleCustomerSubscriptionDeleted.
      */
     protected function handleInvoicePaymentFailed(array $payload): Response
     {
-        $customerId = $payload['data']['object']['customer'] ?? null;
-        $invoiceId = $payload['data']['object']['id'] ?? null;
+        $invoice = $payload['data']['object'] ?? [];
+        $customerId = $invoice['customer'] ?? null;
+        $invoiceId = $invoice['id'] ?? null;
 
         if (! $customerId) {
             return $this->successMethod();
@@ -228,7 +235,72 @@ class StripeWebhookController extends CashierWebhookController
             'tenant_id' => $tenant?->id,
             'customer' => $customerId,
             'invoice' => $invoiceId,
+            'attempt_count' => $invoice['attempt_count'] ?? null,
         ]);
+
+        if (! $tenant || ! $tenant->admin_email) {
+            return $this->successMethod();
+        }
+
+        $this->resyncSubscriptionEnv($tenant);
+
+        try {
+            Mail::to($tenant->admin_email)->send(new PaymentFailed(
+                $tenant,
+                (int) ($invoice['attempt_count'] ?? 1),
+                isset($invoice['next_payment_attempt'])
+                    ? Carbon::createFromTimestamp($invoice['next_payment_attempt'])
+                    : null,
+            ));
+        } catch (Throwable $e) {
+            Log::warning('stripe.invoice_payment_failed: mail send failed', [
+                'tenant_id' => $tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $this->successMethod();
+    }
+
+    /**
+     * Handle Stripe's trial-ending warning (fires ~3 days before trial end).
+     * Emails the tenant admin with a heads-up + cancel link. For Tier 1's
+     * 3-day trial this arrives within minutes of checkout, which is still
+     * useful — the admin confirms they meant to subscribe.
+     */
+    protected function handleCustomerSubscriptionTrialWillEnd(array $payload): Response
+    {
+        $subscription = $payload['data']['object'] ?? [];
+        $customerId = $subscription['customer'] ?? null;
+
+        if (! $customerId) {
+            return $this->successMethod();
+        }
+
+        $tenant = Tenant::where('stripe_customer_id', $customerId)->first();
+
+        if (! $tenant || ! $tenant->admin_email) {
+            return $this->successMethod();
+        }
+
+        $trialEndsAt = isset($subscription['trial_end'])
+            ? Carbon::createFromTimestamp($subscription['trial_end'])
+            : null;
+
+        Log::info('stripe.subscription_trial_will_end', [
+            'tenant_id' => $tenant->id,
+            'customer' => $customerId,
+            'trial_end' => $trialEndsAt?->toIso8601String(),
+        ]);
+
+        try {
+            Mail::to($tenant->admin_email)->send(new TrialWillEnd($tenant, $trialEndsAt));
+        } catch (Throwable $e) {
+            Log::warning('stripe.subscription_trial_will_end: mail send failed', [
+                'tenant_id' => $tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $this->successMethod();
     }

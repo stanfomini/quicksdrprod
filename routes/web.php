@@ -33,7 +33,10 @@ require __DIR__.'/settings.php';
 // their tenant app → HMAC-signed URL hits the orchestrator → Stripe
 // Customer Portal session → redirect to Stripe's hosted page. No login
 // required on quicksdr.com — the HMAC signature is the authentication.
-Route::get('/billing/portal/{tenant}', TenantBillingPortalController::class)
+// Route-binds by subdomain rather than ID — tenants know their own
+// subdomain (it's in their APP_URL host), they don't know their tenant_id
+// on the orchestrator side.
+Route::get('/billing/portal/{tenant:subdomain}', TenantBillingPortalController::class)
     ->name('billing.portal')
     ->middleware(EnsureOrchestrator::class);
 

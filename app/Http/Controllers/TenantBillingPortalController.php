@@ -37,7 +37,9 @@ class TenantBillingPortalController extends Controller
             abort(409, 'This tenant is not fully provisioned yet.');
         }
 
-        $expected = hash_hmac('sha256', "{$tenant->id}.{$expires}", $tenant->stats_hmac_key);
+        // HMAC signed over (subdomain.expires) — tenants don't know their
+        // orchestrator-side ID, so we key off subdomain which they do know.
+        $expected = hash_hmac('sha256', "{$tenant->subdomain}.{$expires}", $tenant->stats_hmac_key);
 
         if (! hash_equals($expected, $sig)) {
             abort(403, 'Invalid signature.');

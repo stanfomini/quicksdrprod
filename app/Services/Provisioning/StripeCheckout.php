@@ -34,13 +34,68 @@ class StripeCheckout
     }
 
     /**
+     * Build a one-time Stripe Checkout session for Tier 4 consulting hours.
+     * Uses price_data (ad-hoc pricing) — no preconfigured Stripe price needed.
+     * Hourly rate comes from TenantTier::Tier4's monthlyPriceCents() equivalent
+     * (actually 16000 cents/hr hardcoded here — Tier 4 doesn't have a monthly).
+     */
+    public function createHourlyCheckoutSession(Tenant $tenant, int $hours): string
+    {
+        if ($tenant->tier !== TenantTier::Tier4) {
+            throw new InvalidArgumentException('Hourly checkout is only for Tier 4 tenants.');
+        }
+
+        $secret = config('services.stripe.secret');
+
+        if (! $secret) {
+            throw new RuntimeException('Stripe secret key is not configured.');
+        }
+
+        if ($hours < 1 || $hours > 1000) {
+            throw new InvalidArgumentException('Hours must be between 1 and 1000.');
+        }
+
+        $hourlyRateCents = 16000; // $160/hr
+        $totalCents = $hours * $hourlyRateCents;
+
+        $stripe = new StripeClient($secret);
+
+        $session = $stripe->checkout->sessions->create([
+            'mode' => 'payment',
+            'customer_email' => $tenant->admin_email,
+            'client_reference_id' => (string) $tenant->id,
+            'line_items' => [[
+                'price_data' => [
+                    'currency' => 'usd',
+                    'unit_amount' => $hourlyRateCents,
+                    'product_data' => [
+                        'name' => 'QuickSDR consulting',
+                        'description' => "{$hours} hour".($hours === 1 ? '' : 's').' @ $160/hr',
+                    ],
+                ],
+                'quantity' => $hours,
+            ]],
+            'success_url' => 'https://quicksdr.com/signup/success?session_id={CHECKOUT_SESSION_ID}&tenant_id='.$tenant->id,
+            'cancel_url' => 'https://quicksdr.com/signup?cancelled=1&tenant_id='.$tenant->id,
+            'metadata' => [
+                'tenant_id' => (string) $tenant->id,
+                'tier' => 'tier4',
+                'hours' => (string) $hours,
+                'total_cents' => (string) $totalCents,
+            ],
+        ]);
+
+        return $session->url;
+    }
+
+    /**
      * Build a Stripe Checkout session for a pending tenant and return the
      * redirect URL. Tier 4 is "contact sales" and must not reach this flow.
      */
     public function createSession(Tenant $tenant): string
     {
         if ($tenant->tier === TenantTier::Tier4) {
-            throw new InvalidArgumentException('Tier 4 is handled via the contact-sales form, not Stripe Checkout.');
+            throw new InvalidArgumentException('Tier 4 uses createHourlyCheckoutSession(). Pass hours in.');
         }
 
         $secret = config('services.stripe.secret');

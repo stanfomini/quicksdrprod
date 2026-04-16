@@ -107,15 +107,23 @@
     @endif
 
     <div class="flex flex-wrap items-center gap-2">
-        {{-- Pending: payment link + provision --}}
-        @if ($tenant->status === \App\Enums\TenantStatus::Pending && ! $tenant->stripe_customer_id)
+        {{-- Pending + non-Tier-4: subscription payment link --}}
+        @if ($tenant->status === \App\Enums\TenantStatus::Pending && $tenant->tier !== \App\Enums\TenantTier::Tier4 && ! $tenant->stripe_customer_id)
             <flux:button wire:click="generatePaymentLink" variant="primary" icon="credit-card">
                 <span wire:loading.remove wire:target="generatePaymentLink">Generate payment link</span>
                 <span wire:loading wire:target="generatePaymentLink">Generating…</span>
             </flux:button>
         @endif
 
-        @if ($tenant->status === \App\Enums\TenantStatus::Pending)
+        {{-- Tier 4: hourly invoice flow --}}
+        @if ($tenant->tier === \App\Enums\TenantTier::Tier4)
+            <flux:modal.trigger name="hourly-invoice">
+                <flux:button variant="primary" icon="clock">Create hourly invoice</flux:button>
+            </flux:modal.trigger>
+        @endif
+
+        {{-- Non-Tier-4 only: provision server --}}
+        @if ($tenant->status === \App\Enums\TenantStatus::Pending && $tenant->tier !== \App\Enums\TenantTier::Tier4)
             <flux:modal.trigger name="provision-now">
                 <flux:button variant="primary" icon="rocket-launch">Provision now</flux:button>
             </flux:modal.trigger>
@@ -164,7 +172,11 @@
                 <flux:heading size="lg">Payment link ready</flux:heading>
             </div>
             <flux:text class="text-zinc-500">
-                {{ $tenant->tier->label() }} — ${{ number_format($tenant->tier->setupFeeCents() / 100) }} setup + ${{ number_format($tenant->tier->monthlyPriceCents() / 100) }}/mo.
+                @if ($tenant->tier === \App\Enums\TenantTier::Tier4)
+                    {{ $tenant->tier->label() }} — {{ $tenant->status_detail['payment_link_hours'] ?? '?' }} hours @ $160/hr.
+                @else
+                    {{ $tenant->tier->label() }} — ${{ number_format($tenant->tier->setupFeeCents() / 100) }} setup + ${{ number_format($tenant->tier->monthlyPriceCents() / 100) }}/mo.
+                @endif
                 Single-use Stripe Checkout session; expires in 24h.
             </flux:text>
             <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-3 font-mono text-xs text-zinc-300 break-all select-all">
@@ -219,6 +231,26 @@
                 </flux:modal.close>
                 <flux:modal.close>
                     <flux:button variant="primary" icon="rocket-launch" wire:click="provisionNow">Provision</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="hourly-invoice" class="md:w-[28rem]">
+        <div class="flex flex-col gap-4">
+            <flux:heading size="lg">Create hourly invoice</flux:heading>
+            <flux:text class="text-zinc-500">Bills {{ $tenant->admin_email }} at $160/hr. Stripe Checkout — one-time payment, no subscription.</flux:text>
+            <flux:input wire:model="hours" type="number" min="1" max="1000" label="Hours" required />
+            <div class="rounded bg-zinc-800/50 p-3 text-sm">
+                Total: <span class="font-mono font-medium text-emerald-400">${{ number_format($hours * 160) }}</span>
+                <span class="text-zinc-500">({{ $hours }} × $160)</span>
+            </div>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button variant="primary" icon="clock" wire:click="generateHourlyLink">Generate link</flux:button>
                 </flux:modal.close>
             </div>
         </div>

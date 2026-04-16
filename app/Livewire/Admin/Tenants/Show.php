@@ -66,6 +66,46 @@ class Show extends Component
 
     public ?string $paymentLinkUrl = null;
 
+    public int $hours = 1;
+
+    /**
+     * Generate a Stripe Checkout Session URL for Tier 4 hourly consulting.
+     * Creates a one-time payment session at $160/hr × $hours.
+     */
+    public function generateHourlyLink(StripeCheckout $checkout): void
+    {
+        if ($this->tenant->tier !== \App\Enums\TenantTier::Tier4) {
+            $this->dispatch('toast', type: 'warning', message: 'Hourly invoice is only for Tier 4.');
+
+            return;
+        }
+
+        if (! config('services.stripe.secret')) {
+            $this->dispatch('toast', type: 'danger', message: 'Stripe not configured. Set STRIPE_SECRET in env.');
+
+            return;
+        }
+
+        try {
+            $this->paymentLinkUrl = $checkout->createHourlyCheckoutSession($this->tenant, $this->hours);
+
+            $this->tenant->forceFill([
+                'status_detail' => [
+                    ...($this->tenant->status_detail ?? []),
+                    'payment_link_url' => $this->paymentLinkUrl,
+                    'payment_link_generated_at' => now()->toIso8601String(),
+                    'payment_link_hours' => $this->hours,
+                ],
+            ])->save();
+
+            $total = number_format(($this->hours * 16000) / 100, 2);
+            $this->dispatch('toast', type: 'success', message: "Hourly invoice ready — {$this->hours} hours, \${$total} total.");
+        } catch (\Throwable $e) {
+            Log::error('generateHourlyLink failed', ['tenant_id' => $this->tenant->id, 'error' => $e->getMessage()]);
+            $this->dispatch('toast', type: 'danger', message: 'Stripe error: '.$e->getMessage());
+        }
+    }
+
     /**
      * Generate a Stripe Checkout Session URL for this tenant. The URL is
      * usable once (Stripe Checkout sessions are single-use). Matthew copies

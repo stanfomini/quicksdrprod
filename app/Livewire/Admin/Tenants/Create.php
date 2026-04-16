@@ -74,6 +74,8 @@ class Create extends Component
 
     public function submit()
     {
+        $isTier4 = $this->tier === 'tier4';
+
         $data = $this->validate([
             'businessName' => ['required', 'string', 'max:255'],
             'adminName' => ['required', 'string', 'max:255'],
@@ -82,18 +84,24 @@ class Create extends Component
             'companyWebsite' => ['nullable', 'url', 'max:255'],
             'roleTitle' => ['nullable', 'string', 'max:255'],
             'subdomain' => [
-                'required',
+                $isTier4 ? 'nullable' : 'required',
                 'string',
                 'regex:/^[a-z0-9][a-z0-9-]{1,39}$/',
                 'unique:tenants,subdomain',
                 Rule::notIn(Tenant::reservedSubdomains()),
             ],
-            'tier' => ['required', Rule::in(['tier1', 'tier2', 'tier3'])],
+            'tier' => ['required', Rule::in(['tier1', 'tier2', 'tier3', 'tier4'])],
             'skipPayment' => ['boolean'],
             'provisionImmediately' => ['boolean'],
             'stripeCustomerId' => ['nullable', 'string', 'starts_with:cus_', 'max:255'],
             'stripeSubscriptionId' => ['nullable', 'string', 'starts_with:sub_', 'max:255'],
         ]);
+
+        // Tier 4 doesn't need a subdomain; use a generated stub so the
+        // unique constraint passes. Never actually reaches DNS.
+        if ($isTier4 && empty($data['subdomain'])) {
+            $data['subdomain'] = 'consulting-'.Str::random(8);
+        }
 
         $tenant = Tenant::create([
             'business_name' => $data['businessName'],
@@ -110,7 +118,8 @@ class Create extends Component
             'stripe_subscription_id' => $data['stripeSubscriptionId'] ?: null,
         ]);
 
-        if ($data['provisionImmediately']) {
+        // Tier 4 is hourly consulting — no server to provision.
+        if ($data['provisionImmediately'] && $tenant->tier !== TenantTier::Tier4) {
             ProvisionTenantServer::dispatch($tenant);
         }
 
@@ -121,8 +130,17 @@ class Create extends Component
     {
         return view('livewire.admin.tenants.create', [
             'tiers' => collect(TenantTier::cases())
-                ->filter(fn (TenantTier $t) => $t !== TenantTier::Tier4)
-                ->map(fn (TenantTier $t) => ['value' => $t->value, 'label' => $t->label()])
+                ->map(fn (TenantTier $t) => [
+                    'value' => $t->value,
+                    'label' => $t->label(),
+                    'needs_server' => $t->needsServer(),
+                    'price' => match ($t) {
+                        TenantTier::Tier1 => '$350/mo',
+                        TenantTier::Tier2 => '$1,000 + $350/mo',
+                        TenantTier::Tier3 => '$3,000 + $350/mo',
+                        TenantTier::Tier4 => '$160/hr',
+                    },
+                ])
                 ->values()
                 ->all(),
             'dryRun' => (bool) config('services.provisioning.dry_run'),

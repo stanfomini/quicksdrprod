@@ -42,7 +42,7 @@
             <flux:legend>Server + tier</flux:legend>
 
             <div>
-                <flux:input wire:model.live.debounce.300ms="subdomain" label="Subdomain" placeholder="acme-solar" required description="Becomes {subdomain}.quicksdr.com" />
+                <flux:input wire:model.live.debounce.300ms="subdomain" label="Subdomain" placeholder="acme-solar" description="Becomes {subdomain}.quicksdr.com (ignored for Tier 4 consulting)" />
                 @if ($subdomainStatus === 'invalid')
                     <flux:text size="sm" class="mt-1 text-red-500">Invalid — lowercase letters, digits, hyphens. Must start with a letter/digit. 2–40 chars.</flux:text>
                 @elseif ($subdomainStatus === 'reserved')
@@ -54,17 +54,28 @@
                 @endif
             </div>
 
-            <flux:radio.group wire:model="tier" label="Tier">
+            <flux:radio.group wire:model.live="tier" label="Tier">
                 @foreach ($tiers as $t)
-                    <flux:radio value="{{ $t['value'] }}" label="{{ $t['label'] }}" />
+                    <flux:radio value="{{ $t['value'] }}">
+                        <div class="flex flex-col">
+                            <span class="font-medium">{{ $t['label'] }}</span>
+                            <span class="text-xs text-zinc-500">{{ $t['price'] }}{{ $t['needs_server'] ? '' : ' — no server, consulting only' }}</span>
+                        </div>
+                    </flux:radio>
                 @endforeach
             </flux:radio.group>
 
             <flux:separator />
 
-            <flux:checkbox wire:model="skipPayment" label="Skip payment" description="Creates the tenant without a Stripe subscription. Use for comps, demos, and internal accounts." />
+            <flux:checkbox wire:model="skipPayment" label="Skip payment for now" description="Creates the tenant without charging. Generate a payment link from the detail page after." />
 
-            <flux:checkbox wire:model="provisionImmediately" label="Provision immediately" description="Dispatches ProvisionTenantServer right away. Leave off if you want to stage and provision later." />
+            @if ($tier !== 'tier4')
+                <flux:checkbox wire:model="provisionImmediately" label="Provision server immediately" description="Dispatches the build pipeline right after create. Uncheck to stage and provision later." />
+            @else
+                <flux:callout color="blue" icon="information-circle">
+                    <flux:callout.text>Tier 4 is hourly consulting — no server is provisioned. After creating, generate an hourly invoice from the tenant detail page.</flux:callout.text>
+                </flux:callout>
+            @endif
         </flux:fieldset>
 
         <flux:fieldset class="flex flex-col gap-4 lg:col-span-2">

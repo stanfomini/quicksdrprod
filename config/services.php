@@ -96,4 +96,11 @@ return [
         'dry_run' => env('PROVISIONING_DRY_RUN', false),
     ],
 
+    // Tenant ↔ orchestrator shared HMAC key. Read via config(...) (never
+    // env()) in application code because tenant deploys cache config, which
+    // breaks direct env() reads at runtime.
+    'stats' => [
+        'hmac_key' => env('STATS_HMAC_KEY'),
+    ],
+
 ];

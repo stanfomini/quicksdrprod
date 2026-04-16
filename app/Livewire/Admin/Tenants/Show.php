@@ -6,8 +6,10 @@ use App\Enums\TenantStatus;
 use App\Jobs\DestroyTenantServer;
 use App\Jobs\ProvisionTenantServer;
 use App\Models\Tenant;
+use App\Services\Provisioning\ForgeClient;
 use App\Services\Provisioning\StripeCheckout;
 use App\Services\Provisioning\TenantBilling;
+use App\Services\Provisioning\TenantProvisioner;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Attributes\Computed;
@@ -277,6 +279,111 @@ class Show extends Component
         $this->tenant->delete();
 
         $this->redirect(route('admin.tenants.index'), navigate: true);
+    }
+
+    /**
+     * Push the orchestrator's current admin_email down to the tenant server,
+     * updating the existing admin User's email in place and emailing a
+     * password reset link to the new address. Requires the tenant app to
+     * have the claimstaker:set-admin-email command (added in this feature).
+     */
+    public function updateAdminEmailOnTenant(ForgeClient $forge): void
+    {
+        if (! $this->tenant->forge_server_id || ! $this->tenant->forge_site_id) {
+            $this->dispatch('toast', type: 'warning', message: 'Tenant server not provisioned yet.');
+
+            return;
+        }
+
+        try {
+            $email = escapeshellarg($this->tenant->admin_email);
+            $cmd = "php artisan claimstaker:set-admin-email {$email} --send-reset";
+
+            $commandId = $forge->executeSiteCommand(
+                $this->tenant->forge_server_id,
+                $this->tenant->forge_site_id,
+                $cmd,
+            );
+
+            $this->tenant->recordStep(
+                (int) $this->tenant->status_step,
+                'admin email update dispatched to tenant server',
+                ['command_id' => $commandId, 'new_email' => $this->tenant->admin_email],
+            );
+
+            $this->dispatch(
+                'toast',
+                type: 'success',
+                message: "Update dispatched. A password reset link is being sent to {$this->tenant->admin_email}.",
+            );
+
+            $this->tenant->refresh();
+        } catch (\Throwable $e) {
+            Log::error('updateAdminEmailOnTenant failed', [
+                'tenant_id' => $this->tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+            $this->dispatch('toast', type: 'danger', message: 'Forge error: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Re-run the provisioning invite-admin step to generate a fresh tokenized
+     * signup URL for the current admin_email. Creates a PARALLEL admin
+     * account on the tenant server — does not touch any existing admin user.
+     * Use when the original admin never accepted the invite or the token
+     * expired.
+     */
+    public function inviteFreshAdmin(ForgeClient $forge, TenantProvisioner $provisioner): void
+    {
+        if (! $this->tenant->forge_server_id || ! $this->tenant->forge_site_id) {
+            $this->dispatch('toast', type: 'warning', message: 'Tenant server not provisioned yet.');
+
+            return;
+        }
+
+        try {
+            $email = escapeshellarg($this->tenant->admin_email);
+            $cmd = "php artisan claimstaker:invite-admin {$email} --no-email --hours=168";
+
+            $commandId = $forge->executeSiteCommand(
+                $this->tenant->forge_server_id,
+                $this->tenant->forge_site_id,
+                $cmd,
+            );
+
+            $url = null;
+            for ($i = 0; $i < 15; $i++) {
+                sleep(1);
+                $url = $provisioner->readAdminSignupUrl($this->tenant, $commandId);
+                if ($url) {
+                    break;
+                }
+            }
+
+            if ($url) {
+                $this->tenant->forceFill(['admin_signup_url' => $url])->save();
+                $this->tenant->refresh();
+
+                $this->dispatch(
+                    'toast',
+                    type: 'success',
+                    message: "Fresh signup link generated for {$this->tenant->admin_email}. Use \"Copy admin signup URL\" to grab it.",
+                );
+            } else {
+                $this->dispatch(
+                    'toast',
+                    type: 'warning',
+                    message: 'Invite command dispatched, but no URL was captured yet. Check the tenant\'s Forge site commands log.',
+                );
+            }
+        } catch (\Throwable $e) {
+            Log::error('inviteFreshAdmin failed', [
+                'tenant_id' => $this->tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+            $this->dispatch('toast', type: 'danger', message: 'Forge error: '.$e->getMessage());
+        }
     }
 
     /**

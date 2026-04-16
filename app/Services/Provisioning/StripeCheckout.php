@@ -34,6 +34,23 @@ class StripeCheckout
     }
 
     /**
+     * Update an existing Stripe customer's email. Used when the orchestrator
+     * admin_email is edited — keeps receipts/invoices flowing to the right
+     * address. Safe to call with any customer ID Stripe recognises.
+     */
+    public function updateCustomerEmail(string $customerId, string $email): void
+    {
+        $secret = config('services.stripe.secret');
+
+        if (! $secret) {
+            throw new RuntimeException('Stripe secret key is not configured.');
+        }
+
+        $stripe = new StripeClient($secret);
+        $stripe->customers->update($customerId, ['email' => $email]);
+    }
+
+    /**
      * Build a one-time Stripe Checkout session for Tier 4 consulting hours.
      * Uses price_data (ad-hoc pricing) — no preconfigured Stripe price needed.
      * Hourly rate comes from TenantTier::Tier4's monthlyPriceCents() equivalent

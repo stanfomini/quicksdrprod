@@ -28,7 +28,10 @@
             </div>
             <flux:text class="text-zinc-500">{{ $tenant->business_name }}</flux:text>
         </div>
-        <flux:button variant="ghost" icon="arrow-left" :href="route('admin.tenants.index')" wire:navigate>Back</flux:button>
+        <div class="flex items-center gap-2">
+            <flux:button variant="ghost" icon="pencil-square" :href="route('admin.tenants.edit', $tenant)" wire:navigate>Edit</flux:button>
+            <flux:button variant="ghost" icon="arrow-left" :href="route('admin.tenants.index')" wire:navigate>Back</flux:button>
+        </div>
     </div>
 
     @php
@@ -148,6 +151,17 @@
 
         @if ($tenant->admin_signup_url)
             <flux:button wire:click="copySignupUrl" variant="ghost" icon="clipboard">Copy admin signup URL</flux:button>
+        @endif
+
+        {{-- Tenant-server admin reset: only on Ready tenants with a real site --}}
+        @if ($tenant->status === \App\Enums\TenantStatus::Ready && $tenant->forge_site_id)
+            <flux:modal.trigger name="update-admin-email">
+                <flux:button variant="ghost" icon="envelope">Update admin email on tenant server</flux:button>
+            </flux:modal.trigger>
+
+            <flux:modal.trigger name="invite-fresh-admin">
+                <flux:button variant="ghost" icon="user-plus">Invite new admin (parallel signup)</flux:button>
+            </flux:modal.trigger>
         @endif
 
         {{-- Destroy: only when there's an active server to tear down --}}
@@ -307,6 +321,58 @@
                 </flux:modal.close>
                 <flux:modal.close>
                     <flux:button variant="primary" icon="arrow-path" wire:click="rebuild">Rebuild</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="update-admin-email" class="md:w-[32rem]">
+        <div class="flex flex-col gap-4">
+            <flux:heading size="lg">Update admin email on tenant server?</flux:heading>
+            <flux:text>
+                This runs <code class="font-mono text-xs">claimstaker:set-admin-email {{ $tenant->admin_email }} --send-reset</code>
+                on {{ $tenant->subdomain }}.quicksdr.com. The existing admin user's email is changed in place
+                and a password reset link is sent to <strong>{{ $tenant->admin_email }}</strong>.
+            </flux:text>
+            <flux:callout color="amber" icon="information-circle">
+                <flux:callout.text>
+                    Requires the tenant app to have the <code class="font-mono text-xs">claimstaker:set-admin-email</code>
+                    command (shipped with the latest saaspull template). If the tenant was provisioned before this
+                    command existed, trigger a deploy on their Forge site first.
+                </flux:callout.text>
+            </flux:callout>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button variant="primary" icon="envelope" wire:click="updateAdminEmailOnTenant">Update email</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="invite-fresh-admin" class="md:w-[32rem]">
+        <div class="flex flex-col gap-4">
+            <flux:heading size="lg">Invite a new admin for {{ $tenant->admin_email }}?</flux:heading>
+            <flux:text>
+                This runs <code class="font-mono text-xs">claimstaker:invite-admin {{ $tenant->admin_email }}</code>
+                on the tenant server and captures a fresh tokenized signup URL (valid for 7 days).
+                Use "Copy admin signup URL" after to grab the link.
+            </flux:text>
+            <flux:callout color="blue" icon="information-circle">
+                <flux:callout.text>
+                    Creates a PARALLEL admin account — the existing admin (if any) is untouched. Use when the
+                    original admin never accepted the invite or the token expired. Clean up stale admin
+                    accounts manually from the tenant app's admin panel.
+                </flux:callout.text>
+            </flux:callout>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button variant="primary" icon="user-plus" wire:click="inviteFreshAdmin">Invite</flux:button>
                 </flux:modal.close>
             </div>
         </div>

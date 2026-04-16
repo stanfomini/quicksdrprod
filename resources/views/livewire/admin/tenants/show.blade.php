@@ -167,27 +167,58 @@
 
     @if ($paymentLinkUrl)
         <flux:card class="flex flex-col gap-4">
-            <div class="flex items-center gap-2">
-                <flux:icon name="credit-card" class="h-5 w-5 text-emerald-500" />
-                <flux:heading size="lg">Payment link ready</flux:heading>
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    @if ($tenant->stripe_customer_id)
+                        <flux:icon name="check-circle" class="h-5 w-5 text-emerald-500" />
+                        <flux:heading size="lg">Paid — link used</flux:heading>
+                    @else
+                        <flux:icon name="credit-card" class="h-5 w-5 text-amber-500" />
+                        <flux:heading size="lg">Payment link — waiting on customer</flux:heading>
+                    @endif
+                </div>
+                @if (! empty($tenant->status_detail['payment_link_generated_at']))
+                    <flux:text size="sm" class="text-zinc-500">
+                        Generated {{ \Illuminate\Support\Carbon::parse($tenant->status_detail['payment_link_generated_at'])->diffForHumans() }}
+                    </flux:text>
+                @endif
             </div>
             <flux:text class="text-zinc-500">
                 @if ($tenant->tier === \App\Enums\TenantTier::Tier4)
-                    {{ $tenant->tier->label() }} — {{ $tenant->status_detail['payment_link_hours'] ?? '?' }} hours @ $160/hr.
+                    {{ $tenant->tier->label() }} — {{ $tenant->status_detail['payment_link_hours'] ?? '?' }} hours @ $160/hr =
+                    <span class="text-emerald-400">${{ number_format((int) ($tenant->status_detail['payment_link_hours'] ?? 0) * 160) }}</span> one-time.
                 @else
-                    {{ $tenant->tier->label() }} — ${{ number_format($tenant->tier->setupFeeCents() / 100) }} setup + ${{ number_format($tenant->tier->monthlyPriceCents() / 100) }}/mo.
+                    {{ $tenant->tier->label() }} — ${{ number_format($tenant->tier->setupFeeCents() / 100) }} setup + ${{ number_format($tenant->tier->monthlyPriceCents() / 100) }}/mo
+                    @if ($tenant->tier->freeTrialDays() > 0)
+                        <span class="text-blue-400">({{ $tenant->tier->freeTrialDays() }}-day trial)</span>
+                    @endif
                 @endif
-                Single-use Stripe Checkout session; expires in 24h.
+                @if (! $tenant->stripe_customer_id)
+                    &middot; Single-use Stripe Checkout session; expires 24h after generation.
+                @endif
             </flux:text>
             <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-3 font-mono text-xs text-zinc-300 break-all select-all">
                 {{ $paymentLinkUrl }}
             </div>
             <div class="flex flex-wrap gap-2">
                 <flux:button wire:click="copyPaymentLink" variant="ghost" icon="clipboard" size="sm">Copy URL</flux:button>
-                <flux:button wire:click="emailPaymentLink" variant="primary" icon="envelope" size="sm">
-                    <span wire:loading.remove wire:target="emailPaymentLink">Email to {{ $tenant->admin_email }}</span>
-                    <span wire:loading wire:target="emailPaymentLink">Sending…</span>
-                </flux:button>
+                @unless ($tenant->stripe_customer_id)
+                    <flux:button wire:click="emailPaymentLink" variant="primary" icon="envelope" size="sm">
+                        <span wire:loading.remove wire:target="emailPaymentLink">Email to {{ $tenant->admin_email }}</span>
+                        <span wire:loading wire:target="emailPaymentLink">Sending…</span>
+                    </flux:button>
+
+                    @if ($tenant->tier === \App\Enums\TenantTier::Tier4)
+                        <flux:modal.trigger name="hourly-invoice">
+                            <flux:button variant="ghost" icon="arrow-path" size="sm">Regenerate with different hours</flux:button>
+                        </flux:modal.trigger>
+                    @else
+                        <flux:button wire:click="generatePaymentLink" variant="ghost" icon="arrow-path" size="sm">
+                            <span wire:loading.remove wire:target="generatePaymentLink">Regenerate</span>
+                            <span wire:loading wire:target="generatePaymentLink">Regenerating…</span>
+                        </flux:button>
+                    @endif
+                @endunless
             </div>
         </flux:card>
     @endif

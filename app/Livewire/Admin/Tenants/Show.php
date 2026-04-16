@@ -22,6 +22,17 @@ class Show extends Component
     public function mount(Tenant $tenant): void
     {
         $this->tenant = $tenant;
+
+        // Re-surface the last-generated payment link so it stays visible
+        // across page reloads. URL persists in status_detail; component
+        // state doesn't (Livewire clears publics on full page load).
+        $detail = $tenant->status_detail ?? [];
+        if (! empty($detail['payment_link_url'])) {
+            $this->paymentLinkUrl = $detail['payment_link_url'];
+        }
+        if (! empty($detail['payment_link_hours'])) {
+            $this->hours = (int) $detail['payment_link_hours'];
+        }
     }
 
     public function retryProvisioning(): void

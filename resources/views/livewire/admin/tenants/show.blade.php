@@ -160,7 +160,7 @@
             </flux:modal.trigger>
 
             <flux:modal.trigger name="invite-fresh-admin">
-                <flux:button variant="ghost" icon="user-plus">Invite new admin (parallel signup)</flux:button>
+                <flux:button variant="ghost" icon="user-plus">Invite admin</flux:button>
             </flux:modal.trigger>
         @endif
 
@@ -353,29 +353,40 @@
     </flux:modal>
 
     <flux:modal name="invite-fresh-admin" class="md:w-[32rem]">
-        <div class="flex flex-col gap-4">
-            <flux:heading size="lg">Invite a new admin for {{ $tenant->admin_email }}?</flux:heading>
-            <flux:text>
-                This runs <code class="font-mono text-xs">claimstaker:invite-admin {{ $tenant->admin_email }}</code>
-                on the tenant server and captures a fresh tokenized signup URL (valid for 7 days).
-                Use "Copy admin signup URL" after to grab the link.
+        <form wire:submit="inviteFreshAdmin" class="flex flex-col gap-4">
+            <flux:heading size="lg">Invite an admin to {{ $tenant->subdomain }}.quicksdr.com</flux:heading>
+            <flux:text class="text-zinc-500">
+                Creates an admin user on the tenant server (if one with this email doesn't already exist), generates a password-set link, and emails it from the orchestrator.
+                Re-running for an existing address mints a fresh reset link and resends the email — does not touch any existing admin account.
             </flux:text>
-            <flux:callout color="blue" icon="information-circle">
-                <flux:callout.text>
-                    Creates a PARALLEL admin account — the existing admin (if any) is untouched. Use when the
-                    original admin never accepted the invite or the token expired. Clean up stale admin
-                    accounts manually from the tenant app's admin panel.
-                </flux:callout.text>
-            </flux:callout>
+
+            <flux:input
+                wire:model="inviteEmail"
+                type="email"
+                label="Admin email"
+                description="Defaults to the tenant's contact email — change it to invite a coworker or a corrected address."
+                required
+            />
+
+            <flux:input
+                wire:model="inviteName"
+                label="Admin name"
+                description="Shown on the invite email and used on the tenant's user record."
+                required
+            />
+
             <div class="flex justify-end gap-2">
                 <flux:modal.close>
-                    <flux:button variant="ghost">Cancel</flux:button>
+                    <flux:button type="button" variant="ghost">Cancel</flux:button>
                 </flux:modal.close>
                 <flux:modal.close>
-                    <flux:button variant="primary" icon="user-plus" wire:click="inviteFreshAdmin">Invite</flux:button>
+                    <flux:button type="submit" variant="primary" icon="user-plus">
+                        <span wire:loading.remove wire:target="inviteFreshAdmin">Send invite</span>
+                        <span wire:loading wire:target="inviteFreshAdmin">Sending…</span>
+                    </flux:button>
                 </flux:modal.close>
             </div>
-        </div>
+        </form>
     </flux:modal>
 
     <flux:modal name="delete-tenant" class="md:w-96">

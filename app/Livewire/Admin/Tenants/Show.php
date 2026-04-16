@@ -35,6 +35,9 @@ class Show extends Component
         if (! empty($detail['payment_link_hours'])) {
             $this->hours = (int) $detail['payment_link_hours'];
         }
+
+        $this->inviteEmail = (string) $tenant->admin_email;
+        $this->inviteName = (string) ($tenant->admin_name ?? '');
     }
 
     public function retryProvisioning(): void
@@ -81,6 +84,12 @@ class Show extends Component
     public ?string $paymentLinkUrl = null;
 
     public int $hours = 1;
+
+    // Invite-new-admin modal inputs. Default to current tenant values but
+    // editable so the operator can invite a coworker/different address.
+    public string $inviteEmail = '';
+
+    public string $inviteName = '';
 
     /**
      * Generate a Stripe Checkout Session URL for Tier 4 hourly consulting.
@@ -328,11 +337,13 @@ class Show extends Component
     }
 
     /**
-     * Re-run the provisioning invite-admin step to generate a fresh tokenized
-     * signup URL for the current admin_email. Creates a PARALLEL admin
-     * account on the tenant server — does not touch any existing admin user.
-     * Use when the original admin never accepted the invite or the token
-     * expired.
+     * Invite any email (typically a coworker) as an admin on the tenant
+     * server. Runs claimstaker:create-admin for the supplied email + name,
+     * captures the RESET_URL from stdout, and emails the reset link from
+     * the orchestrator (tenants have MAIL_MAILER=log so they can't send
+     * themselves). Idempotent: re-running for an existing email just mints
+     * a fresh reset token and resends. A second/additional admin doesn't
+     * touch any pre-existing admin account.
      */
     public function inviteFreshAdmin(ForgeClient $forge, TenantProvisioner $provisioner): void
     {
@@ -342,9 +353,16 @@ class Show extends Component
             return;
         }
 
+        $data = $this->validate([
+            'inviteEmail' => ['required', 'email', 'max:255'],
+            'inviteName' => ['required', 'string', 'max:255'],
+        ]);
+
         try {
-            $email = escapeshellarg($this->tenant->admin_email);
-            $cmd = "php artisan claimstaker:invite-admin {$email} --no-email --hours=168";
+            $email = escapeshellarg($data['inviteEmail']);
+            $name = escapeshellarg($data['inviteName']);
+            $business = escapeshellarg($this->tenant->business_name ?: 'QuickSDR');
+            $cmd = "php artisan claimstaker:create-admin {$email} {$name} --business={$business} --with-reset-url";
 
             $commandId = $forge->executeSiteCommand(
                 $this->tenant->forge_server_id,
@@ -353,7 +371,7 @@ class Show extends Component
             );
 
             $url = null;
-            for ($i = 0; $i < 15; $i++) {
+            for ($i = 0; $i < 20; $i++) {
                 sleep(1);
                 $url = $provisioner->readAdminSignupUrl($this->tenant, $commandId);
                 if ($url) {
@@ -361,28 +379,46 @@ class Show extends Component
                 }
             }
 
-            if ($url) {
-                $this->tenant->forceFill(['admin_signup_url' => $url])->save();
-                $this->tenant->refresh();
-
-                $this->dispatch(
-                    'toast',
-                    type: 'success',
-                    message: "Fresh signup link generated for {$this->tenant->admin_email}. Use \"Copy admin signup URL\" to grab it.",
-                );
-            } else {
+            if (! $url) {
                 $this->dispatch(
                     'toast',
                     type: 'warning',
-                    message: 'Invite command dispatched, but no URL was captured yet. Check the tenant\'s Forge site commands log.',
+                    message: 'Command dispatched but no RESET_URL captured yet. Retry in a moment or check the tenant\'s Forge command log.',
                 );
+
+                return;
             }
+
+            $tenantHost = $this->tenant->primaryHost();
+            $appUrl = $this->tenant->appUrl();
+            $businessLabel = $this->tenant->business_name ?: $tenantHost;
+
+            Mail::raw(
+                "Hi {$data['inviteName']},\n\n"
+                ."You've been invited as an admin on {$businessLabel} ({$appUrl}).\n\n"
+                ."Click the link below to set your password and log in. This link is valid for about 60 minutes:\n\n"
+                ."{$url}\n\n"
+                ."If the link expires before you use it, go to {$appUrl}/forgot-password and request a new one — your account is already set up.\n\n"
+                ."Questions? Reply to this email.\n\n"
+                ."— QuickSDR",
+                fn ($m) => $m
+                    ->to($data['inviteEmail'])
+                    ->subject("You're invited as an admin on {$businessLabel}")
+                    ->replyTo(config('mail.from.address')),
+            );
+
+            $this->dispatch(
+                'toast',
+                type: 'success',
+                message: "Invite + password-set link sent to {$data['inviteEmail']}.",
+            );
         } catch (\Throwable $e) {
             Log::error('inviteFreshAdmin failed', [
                 'tenant_id' => $this->tenant->id,
+                'invite_email' => $this->inviteEmail,
                 'error' => $e->getMessage(),
             ]);
-            $this->dispatch('toast', type: 'danger', message: 'Forge error: '.$e->getMessage());
+            $this->dispatch('toast', type: 'danger', message: 'Invite failed: '.$e->getMessage());
         }
     }
 

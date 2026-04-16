@@ -398,7 +398,11 @@ class TenantProvisioner
 
     public function ensureDaemons(Tenant $tenant): void
     {
-        $sitePath = "/home/forge/{$tenant->primaryHost()}/current";
+        // Forge deploys sites to /home/forge/{host}/ by default. The '/current'
+        // symlink only exists when zero-downtime deploy is enabled (which we
+        // don't turn on for tenants). Pointing daemons at /current causes
+        // supervisor to fail with 'couldn't chdir ... ENOENT'.
+        $sitePath = "/home/forge/{$tenant->primaryHost()}";
 
         // Queue worker
         $queueCmd = "php {$sitePath}/artisan queue:work --queue=default --timeout=120 --sleep=10 --tries=3";
@@ -437,14 +441,19 @@ class TenantProvisioner
         $recipeId = $this->ensureRecipe('claimstaker-install-python', $script);
         $this->forge->runRecipe($recipeId, [$tenant->forge_server_id]);
 
-        // Python daemon
-        $pythonDaemon = '/home/forge/claimstaker-python/venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8100';
+        // install-python.sh creates the venv INSIDE the package path:
+        //   /home/forge/{host}/vendor/stanfomini/quick-claimstaker/python/venv/
+        // It does NOT create /home/forge/claimstaker-python — that path was
+        // a leftover assumption from an older recipe version.
+        $pyPackagePath = "/home/forge/{$tenant->primaryHost()}/vendor/stanfomini/quick-claimstaker/python";
+        $pythonDaemon = "{$pyPackagePath}/venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8100";
+
         if (! $this->forge->findDaemonByCommand($tenant->forge_server_id, 'uvicorn api.main')) {
             $this->forge->createDaemon(
                 $tenant->forge_server_id,
                 $pythonDaemon,
                 'forge',
-                '/home/forge/claimstaker-python',
+                $pyPackagePath,
             );
         }
 

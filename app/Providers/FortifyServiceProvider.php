@@ -40,10 +40,11 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureViews();
         $this->configureRateLimiting();
 
-        // Production lockdown: only the owner (user id 1) can log in.
-        // Other valid credentials silently fail — no enumeration leak.
-        // Dev/staging environments are unaffected.
-        if ($this->app->environment('production')) {
+        // Production lockdown: on the orchestrator only, restrict login to
+        // the owner (user id 1). Other valid credentials silently fail — no
+        // enumeration leak. Tenant apps need any admin user to be able to
+        // log in, so skip the clamp there (gated by APP_MODE=tenant).
+        if ($this->app->environment('production') && config('app.mode') === 'orchestrator') {
             Fortify::authenticateUsing(function (Request $request) {
                 $user = User::where('email', $request->email)->first();
 

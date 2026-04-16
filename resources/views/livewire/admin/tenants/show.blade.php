@@ -107,6 +107,7 @@
     @endif
 
     <div class="flex flex-wrap items-center gap-2">
+        {{-- Pending: payment link + provision --}}
         @if ($tenant->status === \App\Enums\TenantStatus::Pending && ! $tenant->stripe_customer_id)
             <flux:button wire:click="generatePaymentLink" variant="primary" icon="credit-card">
                 <span wire:loading.remove wire:target="generatePaymentLink">Generate payment link</span>
@@ -120,20 +121,39 @@
             </flux:modal.trigger>
         @endif
 
+        {{-- Failed: retry from last step --}}
         @if ($tenant->status === \App\Enums\TenantStatus::Failed)
             <flux:button wire:click="retryProvisioning" variant="primary" icon="arrow-path">Retry provisioning</flux:button>
         @endif
 
-        <flux:modal.trigger name="destroy-tenant">
-            <flux:button variant="danger" icon="trash">Destroy server</flux:button>
-        </flux:modal.trigger>
+        {{-- Destroyed / ExportOnly: rebuild (new server, fresh pipeline) --}}
+        @if (in_array($tenant->status, [\App\Enums\TenantStatus::Destroyed, \App\Enums\TenantStatus::ExportOnly], true))
+            <flux:modal.trigger name="rebuild-tenant">
+                <flux:button variant="primary" icon="arrow-path">Rebuild server</flux:button>
+            </flux:modal.trigger>
+        @endif
+
+        {{-- Ready: open the tenant app --}}
+        @if ($tenant->status === \App\Enums\TenantStatus::Ready)
+            <flux:button variant="ghost" icon="arrow-top-right-on-square" :href="$tenant->appUrl()" target="_blank">Open tenant</flux:button>
+        @endif
 
         @if ($tenant->admin_signup_url)
             <flux:button wire:click="copySignupUrl" variant="ghost" icon="clipboard">Copy admin signup URL</flux:button>
         @endif
 
-        @if ($tenant->status === \App\Enums\TenantStatus::Ready)
-            <flux:button variant="ghost" icon="arrow-top-right-on-square" :href="$tenant->appUrl()" target="_blank">Open tenant</flux:button>
+        {{-- Destroy: only when there's an active server to tear down --}}
+        @if (in_array($tenant->status, [\App\Enums\TenantStatus::Ready, \App\Enums\TenantStatus::Failed, \App\Enums\TenantStatus::Provisioning], true))
+            <flux:modal.trigger name="destroy-tenant">
+                <flux:button variant="danger" icon="trash">Destroy server</flux:button>
+            </flux:modal.trigger>
+        @endif
+
+        {{-- Delete record: only when no active server (pending with no server, or already destroyed) --}}
+        @if (in_array($tenant->status, [\App\Enums\TenantStatus::Pending, \App\Enums\TenantStatus::Destroyed], true))
+            <flux:modal.trigger name="delete-tenant">
+                <flux:button variant="ghost" icon="trash" class="text-red-500 hover:text-red-400">Delete record</flux:button>
+            </flux:modal.trigger>
         @endif
     </div>
 
@@ -199,6 +219,51 @@
                 </flux:modal.close>
                 <flux:modal.close>
                     <flux:button variant="primary" icon="rocket-launch" wire:click="provisionNow">Provision</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="rebuild-tenant" class="md:w-[32rem]">
+        <div class="flex flex-col gap-4">
+            <flux:heading size="lg">Rebuild {{ $tenant->subdomain }}?</flux:heading>
+            @if (config('services.provisioning.dry_run'))
+                <flux:callout color="amber" icon="beaker">
+                    <flux:callout.heading>Dry-run mode is ON</flux:callout.heading>
+                    <flux:callout.text>This will simulate a fresh 22-step build. No real server is created.</flux:callout.text>
+                </flux:callout>
+            @else
+                <flux:callout color="blue" icon="information-circle">
+                    <flux:callout.heading>Fresh server build</flux:callout.heading>
+                    <flux:callout.text>All Forge artifacts (server, sites, daemons) will be created from scratch. Secrets are regenerated. The subdomain, Stripe link, and tenant record stay the same. Takes ~12-15 min.</flux:callout.text>
+                </flux:callout>
+            @endif
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button variant="primary" icon="arrow-path" wire:click="rebuild">Rebuild</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="delete-tenant" class="md:w-96">
+        <div class="flex flex-col gap-4">
+            <flux:heading size="lg">Delete {{ $tenant->subdomain }}?</flux:heading>
+            <flux:text>This permanently deletes the tenant record from the database. The subdomain becomes available again. This cannot be undone.</flux:text>
+            @if ($tenant->stripe_customer_id)
+                <flux:callout color="amber" icon="exclamation-triangle">
+                    <flux:callout.text>This tenant has a Stripe customer ({{ $tenant->stripe_customer_id }}). Deleting the record won't cancel the subscription — do that in the Stripe dashboard first.</flux:callout.text>
+                </flux:callout>
+            @endif
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button variant="danger" wire:click="deleteTenant">Delete permanently</flux:button>
                 </flux:modal.close>
             </div>
         </div>

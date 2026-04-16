@@ -164,6 +164,70 @@ class Show extends Component
     }
 
     /**
+     * Re-provision a Destroyed or ExportOnly tenant. Resets state to Pending
+     * at step 0 so the full 22-step pipeline runs fresh (new server, new DNS,
+     * etc.). Keeps the tenant row, Stripe links, and subdomain reservation.
+     */
+    public function rebuild(): void
+    {
+        if (! in_array($this->tenant->status, [TenantStatus::Destroyed, TenantStatus::ExportOnly], true)) {
+            $this->dispatch('toast', type: 'warning', message: 'Rebuild is only for Destroyed or Export-only tenants.');
+
+            return;
+        }
+
+        $this->tenant->forceFill([
+            'status' => TenantStatus::Pending,
+            'status_step' => 0,
+            'forge_server_id' => null,
+            'forge_site_id' => null,
+            'forge_ws_site_id' => null,
+            'forge_database_id' => null,
+            'server_ip' => null,
+            'cloudflare_record_id' => null,
+            'cloudflare_ws_record_id' => null,
+            'app_key' => null,
+            'reverb_app_id' => null,
+            'reverb_app_key' => null,
+            'reverb_app_secret' => null,
+            'stats_hmac_key' => null,
+            'db_password' => null,
+            'admin_signup_url' => null,
+            'provisioned_at' => null,
+            'export_only_until' => null,
+            'destroyed_at' => null,
+            'status_detail' => ['log' => [['step' => 0, 'at' => now()->toIso8601String(), 'message' => 'reset for rebuild']]],
+        ])->save();
+
+        ProvisionTenantServer::dispatch($this->tenant);
+
+        $mode = config('services.provisioning.dry_run') ? 'dry-run' : 'REAL';
+        $this->dispatch('toast', type: 'success', message: "Rebuild started ({$mode}). New server spinning up.");
+
+        $this->tenant->refresh();
+    }
+
+    /**
+     * Permanently delete the tenant record. Only allowed when the server has
+     * already been destroyed (or never created). Redirects to the index.
+     */
+    public function deleteTenant(): void
+    {
+        $hasServer = $this->tenant->forge_server_id
+            && ! in_array($this->tenant->status, [TenantStatus::Destroyed], true);
+
+        if ($hasServer) {
+            $this->dispatch('toast', type: 'danger', message: 'Destroy the server first before deleting the tenant record.');
+
+            return;
+        }
+
+        $this->tenant->delete();
+
+        $this->redirect(route('admin.tenants.index'), navigate: true);
+    }
+
+    /**
      * Returns the decrypted admin signup URL for clipboard copy. Called
      * imperatively from the view via a wire:click so we don't serialize the
      * plaintext into the page for no reason.

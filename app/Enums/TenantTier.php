@@ -52,9 +52,9 @@ enum TenantTier: string
     public function serverSize(): string
     {
         return match ($this) {
-            self::Tier1, self::Tier2 => 's-2vcpu-2gb',       // $18/mo DO (closest to $50 Forge tier)
-            self::Tier3 => 's-2vcpu-4gb',                    // $24/mo DO (closest to $100 Forge tier)
-            self::Tier4 => 's-2vcpu-2gb',                    // fallback
+            self::Tier1, self::Tier2 => 's-4vcpu-8gb',       // $48/mo DO — runs PHP-FPM + queue + Reverb + Python + Postgres comfortably
+            self::Tier3 => 's-4vcpu-8gb',                    // same — Tier 3 difference is human services, not server size
+            self::Tier4 => 's-4vcpu-8gb',                    // fallback
         };
     }
 

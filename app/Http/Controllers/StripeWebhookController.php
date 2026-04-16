@@ -5,12 +5,45 @@ namespace App\Http\Controllers;
 use App\Enums\TenantStatus;
 use App\Jobs\ProvisionTenantServer;
 use App\Models\Tenant;
+use App\Services\Provisioning\TenantSubscriptionSyncer;
 use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Http\Controllers\WebhookController as CashierWebhookController;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class StripeWebhookController extends CashierWebhookController
 {
+    public function __construct(private TenantSubscriptionSyncer $subscriptionSyncer)
+    {
+        parent::__construct();
+    }
+
+    /**
+     * Best-effort re-sync of the subscription env snapshot pushed into the
+     * tenant's Forge .env. Failures here are logged but never bubble up —
+     * webhook acks must stay 200 so Stripe doesn't retry indefinitely.
+     */
+    private function resyncSubscriptionEnv(Tenant $tenant): void
+    {
+        if ($tenant->status === TenantStatus::Pending) {
+            // Provisioning pipeline will write the env itself in step 8.
+            return;
+        }
+
+        if (! $tenant->forge_server_id || ! $tenant->forge_site_id) {
+            return;
+        }
+
+        try {
+            $this->subscriptionSyncer->sync($tenant);
+        } catch (Throwable $e) {
+            Log::warning('stripe.webhook: subscription env sync failed', [
+                'tenant_id' => $tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     /**
      * Handle a completed Checkout Session. Links the Stripe customer + subscription
      * back to the Tenant (looked up by client_reference_id = tenant.id). This fires
@@ -109,7 +142,33 @@ class StripeWebhookController extends CashierWebhookController
                 'invoice' => $invoiceId,
                 'status' => $tenant->status->value,
             ]);
+
+            $this->resyncSubscriptionEnv($tenant);
         }
+
+        return $this->successMethod();
+    }
+
+    /**
+     * Handle subscription lifecycle updates (trial→active transition,
+     * cancel_at_period_end toggle, plan changes). Re-sync the tenant's
+     * env snapshot so the trial banner + Billing page stay accurate.
+     */
+    protected function handleCustomerSubscriptionUpdated(array $payload): Response
+    {
+        $customerId = $payload['data']['object']['customer'] ?? null;
+
+        if (! $customerId) {
+            return $this->successMethod();
+        }
+
+        $tenant = Tenant::where('stripe_customer_id', $customerId)->first();
+
+        if (! $tenant) {
+            return $this->successMethod();
+        }
+
+        $this->resyncSubscriptionEnv($tenant);
 
         return $this->successMethod();
     }

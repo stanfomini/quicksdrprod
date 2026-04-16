@@ -27,6 +27,7 @@ class TenantProvisioner
     public function __construct(
         private ForgeClient $forge,
         private CloudflareClient $cloudflare,
+        private TenantSubscriptionSyncer $subscriptionSyncer,
     ) {}
 
     // ─────────────────────────────────────────────────────────────
@@ -262,6 +263,8 @@ class TenantProvisioner
             'ORCHESTRATOR_URL='.rtrim(config('app.url', 'https://quicksdr.com'), '/'),
             'STATS_HMAC_KEY='.$tenant->stats_hmac_key,
             '',
+            ...$this->subscriptionEnvLines($tenant),
+            '',
             'LOG_CHANNEL=stack',
             'LOG_LEVEL=info',
             '',
@@ -306,6 +309,27 @@ class TenantProvisioner
         ];
 
         return implode("\n", $lines)."\n";
+    }
+
+    /**
+     * Tier + Stripe subscription snapshot that the tenant reads via
+     * config/subscription.php. Empty values for fields we can't resolve
+     * (e.g. no stripe_subscription_id yet) so the tenant shows a graceful
+     * "not yet available" state rather than error.
+     *
+     * @return array<int, string>
+     */
+    private function subscriptionEnvLines(Tenant $tenant): array
+    {
+        $values = $this->subscriptionSyncer->valuesForTenant($tenant)
+            ?? array_fill_keys(TenantSubscriptionSyncer::KEYS, '');
+
+        $lines = [];
+        foreach ($values as $key => $value) {
+            $lines[] = $key.'='.$value;
+        }
+
+        return $lines;
     }
 
     // ─────────────────────────────────────────────────────────────

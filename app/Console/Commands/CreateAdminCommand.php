@@ -13,9 +13,10 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Stanfomini\QuickClaimstaker\Models\Agent;
+use Stanfomini\QuickClaimstaker\Models\Company;
 
-#[Signature('claimstaker:create-admin {email : Admin email} {name : Admin name} {--with-reset-url : Also generate a password reset URL and print RESET_URL=https://… to stdout}')]
-#[Description("Idempotently ensure an admin User + Agent(role=admin) exist for the given email. Fresh installs get a random placeholder password; --with-reset-url is the expected flag during SaaS provisioning — the orchestrator captures the reset URL from stdout and emails it to the admin.")]
+#[Signature('claimstaker:create-admin {email : Admin email} {name : Admin name} {--business= : Business name (used to create the initial Company; defaults to the admin name)} {--timezone=America/Denver : Timezone for the initial Company} {--with-reset-url : Also generate a password reset URL and print RESET_URL=https://… to stdout}')]
+#[Description("Idempotently ensure a Company, admin User, and Agent(role=admin) exist for the given email. Fresh installs get a random placeholder password; --with-reset-url is the expected flag during SaaS provisioning — the orchestrator captures the reset URL from stdout and emails it to the admin.")]
 class CreateAdminCommand extends Command
 {
     public function handle(): int
@@ -38,8 +39,25 @@ class CreateAdminCommand extends Command
         }
 
         $hasTypeColumn = Schema::hasColumn('users', 'type');
+        $businessName = trim((string) ($this->option('business') ?: $name));
+        $timezone = (string) $this->option('timezone');
 
-        $user = DB::transaction(function () use ($email, $name, $hasTypeColumn) {
+        $user = DB::transaction(function () use ($email, $name, $businessName, $timezone, $hasTypeColumn) {
+            // Agent requires a company_id — ensure one exists first. We
+            // take the first active company if any (handles re-runs); else
+            // create one from the business name.
+            $company = Company::query()->where('is_active', true)->orderBy('id')->first();
+            if (! $company) {
+                $company = Company::create([
+                    'name' => $businessName ?: 'Default',
+                    'timezone' => $timezone,
+                    'is_active' => true,
+                ]);
+                $this->info("Created Company id={$company->id} name={$company->name}");
+            } else {
+                $this->info("Using existing Company id={$company->id} name={$company->name}");
+            }
+
             $user = User::firstOrNew(['email' => $email]);
 
             if (! $user->exists) {
@@ -52,14 +70,22 @@ class CreateAdminCommand extends Command
                 $user->save();
                 $this->info("Created User id={$user->id} email={$user->email}");
             } else {
+                if ($hasTypeColumn && ($user->type ?? null) !== 'internal') {
+                    $user->type = 'internal';
+                    $user->save();
+                }
                 $this->info("User already exists id={$user->id} email={$user->email}");
             }
 
-            $agent = Agent::firstOrNew(['user_id' => $user->id, 'role' => 'admin']);
+            $agent = Agent::firstOrNew([
+                'user_id' => $user->id,
+                'company_id' => $company->id,
+                'role' => 'admin',
+            ]);
             if (! $agent->exists) {
                 $agent->is_active = true;
                 $agent->save();
-                $this->info("Created Agent id={$agent->id} role=admin");
+                $this->info("Created Agent id={$agent->id} role=admin company_id={$company->id}");
             } else {
                 $this->info("Agent(admin) already exists id={$agent->id}");
             }

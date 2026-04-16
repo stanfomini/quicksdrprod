@@ -499,7 +499,8 @@ class TenantProvisioner
         // fresh tenants — the orchestrator has the real SMTP credentials.
         $email = escapeshellarg($tenant->admin_email);
         $name = escapeshellarg($tenant->admin_name ?: $tenant->admin_email);
-        $cmd = "php artisan claimstaker:create-admin {$email} {$name} --with-reset-url";
+        $business = escapeshellarg($tenant->business_name ?: ($tenant->admin_name ?: $tenant->admin_email));
+        $cmd = "php artisan claimstaker:create-admin {$email} {$name} --business={$business} --with-reset-url";
 
         $commandId = $this->forge->executeSiteCommand(
             $tenant->forge_server_id,

@@ -107,6 +107,13 @@
     @endif
 
     <div class="flex flex-wrap items-center gap-2">
+        @if ($tenant->status === \App\Enums\TenantStatus::Pending && ! $tenant->stripe_customer_id)
+            <flux:button wire:click="generatePaymentLink" variant="primary" icon="credit-card">
+                <span wire:loading.remove wire:target="generatePaymentLink">Generate payment link</span>
+                <span wire:loading wire:target="generatePaymentLink">Generating…</span>
+            </flux:button>
+        @endif
+
         @if ($tenant->status === \App\Enums\TenantStatus::Pending)
             <flux:modal.trigger name="provision-now">
                 <flux:button variant="primary" icon="rocket-launch">Provision now</flux:button>
@@ -129,6 +136,29 @@
             <flux:button variant="ghost" icon="arrow-top-right-on-square" :href="$tenant->appUrl()" target="_blank">Open tenant</flux:button>
         @endif
     </div>
+
+    @if ($paymentLinkUrl)
+        <flux:card class="flex flex-col gap-4">
+            <div class="flex items-center gap-2">
+                <flux:icon name="credit-card" class="h-5 w-5 text-emerald-500" />
+                <flux:heading size="lg">Payment link ready</flux:heading>
+            </div>
+            <flux:text class="text-zinc-500">
+                {{ $tenant->tier->label() }} — ${{ number_format($tenant->tier->setupFeeCents() / 100) }} setup + ${{ number_format($tenant->tier->monthlyPriceCents() / 100) }}/mo.
+                Single-use Stripe Checkout session; expires in 24h.
+            </flux:text>
+            <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-3 font-mono text-xs text-zinc-300 break-all select-all">
+                {{ $paymentLinkUrl }}
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <flux:button wire:click="copyPaymentLink" variant="ghost" icon="clipboard" size="sm">Copy URL</flux:button>
+                <flux:button wire:click="emailPaymentLink" variant="primary" icon="envelope" size="sm">
+                    <span wire:loading.remove wire:target="emailPaymentLink">Email to {{ $tenant->admin_email }}</span>
+                    <span wire:loading wire:target="emailPaymentLink">Sending…</span>
+                </flux:button>
+            </div>
+        </flux:card>
+    @endif
 
     <flux:modal name="destroy-tenant" class="md:w-96">
         <div class="flex flex-col gap-4">

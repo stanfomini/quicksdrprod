@@ -6,6 +6,9 @@ use App\Enums\TenantStatus;
 use App\Jobs\DestroyTenantServer;
 use App\Jobs\ProvisionTenantServer;
 use App\Models\Tenant;
+use App\Services\Provisioning\StripeCheckout;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -59,6 +62,96 @@ class Show extends Component
         $this->dispatch('toast', type: 'success', message: "Provision dispatched — {$mode}. Watch the step log below.");
 
         $this->tenant->refresh();
+    }
+
+    public ?string $paymentLinkUrl = null;
+
+    /**
+     * Generate a Stripe Checkout Session URL for this tenant. The URL is
+     * usable once (Stripe Checkout sessions are single-use). Matthew copies
+     * or emails it to the prospect after their kickoff call.
+     */
+    public function generatePaymentLink(StripeCheckout $checkout): void
+    {
+        if ($this->tenant->stripe_customer_id) {
+            $this->dispatch('toast', type: 'warning', message: 'This tenant already has a Stripe customer. No new link needed.');
+
+            return;
+        }
+
+        if (! $checkout->isConfigured($this->tenant->tier)) {
+            $this->dispatch('toast', type: 'danger', message: 'Stripe not configured for '.$this->tenant->tier->label().'. Check STRIPE_SECRET and STRIPE_PRICE_* env vars.');
+
+            return;
+        }
+
+        try {
+            $this->paymentLinkUrl = $checkout->createSession($this->tenant);
+
+            $this->tenant->forceFill([
+                'status_detail' => [
+                    ...($this->tenant->status_detail ?? []),
+                    'payment_link_url' => $this->paymentLinkUrl,
+                    'payment_link_generated_at' => now()->toIso8601String(),
+                ],
+            ])->save();
+
+            $this->dispatch('toast', type: 'success', message: 'Payment link generated. Copy it or send it below.');
+        } catch (\Throwable $e) {
+            Log::error('generatePaymentLink failed', [
+                'tenant_id' => $this->tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+            $this->dispatch('toast', type: 'danger', message: 'Stripe error: '.$e->getMessage());
+        }
+    }
+
+    public function copyPaymentLink(): void
+    {
+        $url = $this->paymentLinkUrl;
+
+        if (! $url) {
+            $this->dispatch('toast', type: 'warning', message: 'Generate a payment link first.');
+
+            return;
+        }
+
+        $this->dispatch('copy-to-clipboard', text: $url);
+        $this->dispatch('toast', type: 'success', message: 'Copied to clipboard.');
+    }
+
+    public function emailPaymentLink(): void
+    {
+        $url = $this->paymentLinkUrl;
+
+        if (! $url) {
+            $this->dispatch('toast', type: 'warning', message: 'Generate a payment link first.');
+
+            return;
+        }
+
+        $tenant = $this->tenant;
+        $tier = $tenant->tier;
+        $setupFee = $tier->setupFeeCents() > 0 ? '$'.number_format($tier->setupFeeCents() / 100).' setup + ' : '';
+        $monthly = '$'.number_format($tier->monthlyPriceCents() / 100).'/mo';
+
+        Mail::raw(
+            "Hi {$tenant->admin_name},\n\n"
+            ."Great talking with you! Here's your QuickSDR payment link to get started:\n\n"
+            ."{$url}\n\n"
+            ."Plan: {$tier->label()} ({$setupFee}{$monthly})\n"
+            ."Your subdomain: {$tenant->subdomain}.quicksdr.com\n\n"
+            ."Once payment completes, your dedicated server will start building automatically. "
+            ."You'll receive login credentials by email within 15 minutes.\n\n"
+            ."Questions? Reply to this email or call me directly.\n\n"
+            ."— Matthew\nQuickSDR",
+            fn ($m) => $m
+                ->to($tenant->admin_email)
+                ->subject("QuickSDR — complete your {$tier->label()} setup")
+                ->replyTo(config('mail.from.address'))
+        );
+
+        $this->dispatch('toast', type: 'success', message: "Payment link emailed to {$tenant->admin_email}.");
     }
 
     public function destroyServer(): void

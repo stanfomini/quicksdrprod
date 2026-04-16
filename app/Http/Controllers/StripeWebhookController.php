@@ -12,6 +12,65 @@ use Symfony\Component\HttpFoundation\Response;
 class StripeWebhookController extends CashierWebhookController
 {
     /**
+     * Handle a completed Checkout Session. Links the Stripe customer + subscription
+     * back to the Tenant (looked up by client_reference_id = tenant.id). This fires
+     * BEFORE invoice.payment_succeeded for the same payment, so by the time the
+     * invoice handler runs, the tenant already has its stripe_customer_id set and
+     * provisioning can auto-dispatch.
+     */
+    protected function handleCheckoutSessionCompleted(array $payload): Response
+    {
+        $session = $payload['data']['object'] ?? [];
+        $tenantId = $session['client_reference_id'] ?? null;
+        $customerId = $session['customer'] ?? null;
+        $subscriptionId = $session['subscription'] ?? null;
+
+        if (! $tenantId || ! $customerId) {
+            Log::info('stripe.checkout_session_completed: missing tenant or customer', [
+                'client_reference_id' => $tenantId,
+                'customer' => $customerId,
+            ]);
+
+            return $this->successMethod();
+        }
+
+        $tenant = Tenant::find($tenantId);
+
+        if (! $tenant) {
+            Log::warning('stripe.checkout_session_completed: tenant not found', [
+                'tenant_id' => $tenantId,
+                'customer' => $customerId,
+            ]);
+
+            return $this->successMethod();
+        }
+
+        $tenant->forceFill(array_filter([
+            'stripe_customer_id' => $customerId,
+            'stripe_subscription_id' => $subscriptionId,
+        ]))->save();
+
+        Log::info('stripe.checkout_session_completed: tenant linked to Stripe', [
+            'tenant_id' => $tenant->id,
+            'customer' => $customerId,
+            'subscription' => $subscriptionId,
+        ]);
+
+        // If the tenant is still Pending (not yet provisioning), kick off
+        // the build now. This handles Tier 2/3 where Matthew sent a payment
+        // link after the kickoff call.
+        if ($tenant->status === TenantStatus::Pending) {
+            ProvisionTenantServer::dispatch($tenant);
+
+            Log::info('stripe.checkout_session_completed: dispatching provisioner post-payment', [
+                'tenant_id' => $tenant->id,
+            ]);
+        }
+
+        return $this->successMethod();
+    }
+
+    /**
      * Handle a successful invoice payment. On the first successful payment
      * for a Pending tenant, dispatch the provisioning pipeline.
      */

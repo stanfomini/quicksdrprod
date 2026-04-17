@@ -540,12 +540,82 @@ class TenantProvisioner
         $tenant->recordStep(14, 'Python recipe kicked + daemon ensured');
     }
 
+    /**
+     * Rewrite the ws.{subdomain}.quicksdr.com nginx vhost so it reverse-proxies
+     * to the Reverb daemon on 127.0.0.1:8080 instead of Forge's default
+     * Laravel template (which tries to execute PHP for every request and
+     * returns "No input file specified." for /apps/{app_id}/events — the
+     * path Laravel's Pusher driver POSTs to when broadcasting).
+     *
+     * Replaces the broken recipe-based approach: the setup-reverb.sh recipe
+     * expects WS_HOSTNAME/APP_PATH/ADMIN_EMAIL bash vars to be set at run
+     * time, which Forge recipes don't support. The recipe would die at
+     * step 0 for every tenant, and Forge's fire-and-forget recipe runner
+     * never surfaced the failure — so step 15 looked green while broadcasting
+     * was silently broken.
+     *
+     * We keep Forge's SSL cert wiring and config markers intact; only the
+     * `location /` block and the `location ~ \.php$` block are rewritten.
+     * Forge runs `nginx -t` before accepting the update, so a bad template
+     * is rejected without affecting the running site.
+     */
     public function runReverbRecipe(Tenant $tenant): void
     {
-        $script = file_get_contents(base_path('vendor/stanfomini/quick-claimstaker/forge-recipes/setup-reverb.sh'));
-        $recipeId = $this->ensureRecipe('claimstaker-setup-reverb', $script);
-        $this->forge->runRecipe($recipeId, [$tenant->forge_server_id]);
-        $tenant->recordStep(15, 'Reverb recipe kicked');
+        if (! $tenant->forge_server_id || ! $tenant->forge_ws_site_id) {
+            throw new RuntimeException('No server/ws-site for Reverb nginx rewrite');
+        }
+
+        $current = $this->forge->siteNginxFile(
+            $tenant->forge_server_id,
+            $tenant->forge_ws_site_id,
+        );
+
+        $proxyLocation = <<<'NGINX'
+location / {
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header Scheme $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_read_timeout 60s;
+    }
+NGINX;
+
+        // Replace the default try_files location / with the proxy block.
+        $new = preg_replace(
+            '#location / \{\s*try_files[^}]*\}#',
+            $proxyLocation,
+            $current,
+            1,
+            $locCount,
+        );
+
+        if ($locCount !== 1) {
+            // If the vhost has already been rewritten on a re-provision we'll
+            // find our proxy_pass already in place — idempotent no-op.
+            if (str_contains($current, 'proxy_pass http://127.0.0.1:8080')) {
+                $tenant->recordStep(15, 'Reverb nginx already configured — skipping');
+
+                return;
+            }
+            throw new RuntimeException('Unexpected ws-site nginx shape: could not locate the try_files block to replace');
+        }
+
+        // Remove the PHP-FPM location block — this vhost doesn't serve PHP.
+        $new = preg_replace('#location ~ \\\\\.php\\$ \{[^}]*\}\s*#', '', $new, 1);
+
+        $this->forge->updateSiteNginxFile(
+            $tenant->forge_server_id,
+            $tenant->forge_ws_site_id,
+            $new,
+        );
+
+        $tenant->recordStep(15, 'Reverb nginx vhost rewritten to proxy 127.0.0.1:8080', [
+            'ws_site_id' => $tenant->forge_ws_site_id,
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────────

@@ -162,6 +162,16 @@ class ForgeClient
         return $this->forge->siteEnvironmentFile($serverId, $siteId);
     }
 
+    public function siteNginxFile(int $serverId, int $siteId): string
+    {
+        return $this->forge->siteNginxFile($serverId, $siteId);
+    }
+
+    public function updateSiteNginxFile(int $serverId, int $siteId, string $nginxContents): void
+    {
+        $this->forge->updateSiteNginxFile($serverId, $siteId, $nginxContents);
+    }
+
     public function updateDeployScript(int $serverId, int $siteId, string $script): void
     {
         $this->forge->updateSiteDeploymentScript($serverId, $siteId, $script);

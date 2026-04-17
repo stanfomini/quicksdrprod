@@ -14,9 +14,6 @@
                 </span>
                 QuickSDR
             </a>
-            <flux:button :href="route('login')" variant="ghost" size="sm">
-                {{ __('Sign In') }}
-            </flux:button>
         </div>
     </header>
 

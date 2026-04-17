@@ -299,9 +299,7 @@ class TenantProvisioner
             '# TWILIO_AUTH_TOKEN=',
             '# XAI_API_KEY= (or other AI provider)',
             '',
-            'MAIL_MAILER=log',
-            'MAIL_FROM_ADDRESS="hello@'.$tenant->primaryHost().'"',
-            'MAIL_FROM_NAME="${APP_NAME}"',
+            ...$this->mailEnvLines($tenant),
             '',
             'PYTHON_ENABLED=true',
             'PYTHON_URL=http://127.0.0.1:8100',
@@ -309,6 +307,64 @@ class TenantProvisioner
         ];
 
         return implode("\n", $lines)."\n";
+    }
+
+    /**
+     * Mail + Mailgun config lines copied from the orchestrator's own config
+     * so each tenant server can send its own mail (password resets, queue
+     * notifications, etc.) through the same Mailgun pipe. If a key is null
+     * on the orchestrator, we skip it rather than writing an empty value.
+     *
+     * FROM address defaults to the orchestrator's configured sender so every
+     * tenant's outbound mail appears to come from the same branded address.
+     *
+     * @return array<int, string>
+     */
+    public function mailEnvLines(Tenant $tenant): array
+    {
+        $pairs = $this->mailEnvPairs($tenant);
+
+        $lines = [];
+        foreach ($pairs as $key => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            // Quote values that contain spaces, or any of the shell-sensitive
+            // characters Forge's .env parser cares about. Leave simple atoms
+            // unquoted to match the existing file style.
+            $needsQuotes = (bool) preg_match('/[\s"\'#$@]/', (string) $value);
+            $lines[] = $needsQuotes
+                ? $key.'="'.str_replace('"', '\\"', (string) $value).'"'
+                : $key.'='.$value;
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Flat map of the mail env keys we want to propagate from orchestrator
+     * → tenant. Null / empty values are skipped by mailEnvLines(). Public so
+     * the backfill command can reuse it.
+     *
+     * @return array<string, string|null>
+     */
+    public function mailEnvPairs(Tenant $tenant): array
+    {
+        return [
+            'MAIL_MAILER' => config('mail.default'),
+            'MAIL_SCHEME' => config('mail.mailers.smtp.scheme'),
+            'MAIL_HOST' => config('mail.mailers.smtp.host'),
+            'MAIL_PORT' => (string) (config('mail.mailers.smtp.port') ?? ''),
+            'MAIL_USERNAME' => config('mail.mailers.smtp.username'),
+            'MAIL_PASSWORD' => config('mail.mailers.smtp.password'),
+            'MAIL_ENCRYPTION' => config('mail.mailers.smtp.encryption'),
+            'MAIL_FROM_ADDRESS' => config('mail.from.address'),
+            'MAIL_FROM_NAME' => config('mail.from.name', 'QuickSDR'),
+            'MAILGUN_DOMAIN' => config('services.mailgun.domain'),
+            'MAILGUN_SECRET' => config('services.mailgun.secret'),
+            'MAILGUN_ENDPOINT' => config('services.mailgun.endpoint'),
+        ];
     }
 
     /**

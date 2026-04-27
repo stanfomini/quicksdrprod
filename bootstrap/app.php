@@ -40,18 +40,26 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Log every 419 with the offending URL, method, and stack so we can
-        // identify whether it comes from CSRF, Livewire snapshot, or TypeError.
-        $exceptions->report(function (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
-            if ($e->getStatusCode() === 419) {
+        // Catch ALL exceptions — CorruptComponentPayloadException extends \Exception
+        // (not HttpException) so a typed HttpException hook misses it.
+        $exceptions->report(function (\Throwable $e) {
+            $class = get_class($e);
+            $is419 = ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException && $e->getStatusCode() === 419)
+                || str_contains($class, 'CorruptComponent')
+                || str_contains($class, 'ReleaseToken')
+                || str_contains($class, 'TokenMismatch');
+
+            if ($is419) {
                 \Illuminate\Support\Facades\Log::warning('419 captured', [
                     'url' => request()->fullUrl(),
                     'method' => request()->method(),
                     'livewire_call' => request()->input('components.0.calls.0.method'),
-                    'exception_class' => get_class($e),
+                    'exception_class' => $class,
                     'message' => $e->getMessage(),
                     'trace' => collect($e->getTrace())->take(6)->map(fn ($f) => ($f['class'] ?? '').'@'.($f['function'] ?? ''))->join(' → '),
                 ]);
             }
+
+            return false; // let Laravel's default handler continue
         });
     })->create();

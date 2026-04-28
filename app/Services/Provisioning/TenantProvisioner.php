@@ -28,6 +28,7 @@ class TenantProvisioner
         private ForgeClient $forge,
         private CloudflareClient $cloudflare,
         private TenantSubscriptionSyncer $subscriptionSyncer,
+        private TenantBilling $billing,
     ) {}
 
     // ─────────────────────────────────────────────────────────────
@@ -753,8 +754,11 @@ NGINX;
     }
 
     /**
-     * Destroy the tenant's Forge server + DNS records. Invoked from
-     * DestroyTenantServer job after the 7-day export-only grace period.
+     * Destroy the tenant's Forge server + DNS records, cancel the Stripe
+     * subscription, and mark any open invoices uncollectible. Invoked from
+     * DestroyTenantServer job (after the 7-day export-only grace period)
+     * and from the admin "Destroy server" button. Each step is wrapped so
+     * a failure in one doesn't strand the others — destroy is best-effort.
      */
     public function destroy(Tenant $tenant): void
     {
@@ -780,6 +784,39 @@ NGINX;
                         'error' => $e->getMessage(),
                     ]);
                 }
+            }
+        }
+
+        if ($tenant->stripe_subscription_id) {
+            try {
+                $this->billing->cancelSubscription($tenant);
+                Log::info('TenantProvisioner.destroy: Stripe subscription cancelled', [
+                    'tenant_id' => $tenant->id,
+                    'subscription' => $tenant->stripe_subscription_id,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('TenantProvisioner.destroy: Stripe cancel failed (continuing)', [
+                    'tenant_id' => $tenant->id,
+                    'subscription' => $tenant->stripe_subscription_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($tenant->stripe_customer_id) {
+            try {
+                $marked = $this->billing->markOpenInvoicesUncollectible($tenant);
+                if ($marked > 0) {
+                    Log::info('TenantProvisioner.destroy: open invoices marked uncollectible', [
+                        'tenant_id' => $tenant->id,
+                        'count' => $marked,
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('TenantProvisioner.destroy: invoice cleanup failed (continuing)', [
+                    'tenant_id' => $tenant->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 

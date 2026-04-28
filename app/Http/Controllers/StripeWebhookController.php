@@ -202,16 +202,23 @@ class StripeWebhookController extends CashierWebhookController
             return $this->successMethod();
         }
 
-        $tenant->forceFill([
-            'status' => TenantStatus::ExportOnly,
-            'export_only_until' => now()->addDays(7),
-        ])->save();
+        if ($tenant->status === TenantStatus::Destroyed) {
+            Log::info('stripe.subscription_deleted: tenant already destroyed, skipping ExportOnly transition', [
+                'tenant_id' => $tenant->id,
+                'customer' => $customerId,
+            ]);
+        } else {
+            $tenant->forceFill([
+                'status' => TenantStatus::ExportOnly,
+                'export_only_until' => now()->addDays(7),
+            ])->save();
 
-        Log::warning('stripe.subscription_deleted: tenant moved to export-only', [
-            'tenant_id' => $tenant->id,
-            'customer' => $customerId,
-            'export_only_until' => $tenant->export_only_until->toIso8601String(),
-        ]);
+            Log::warning('stripe.subscription_deleted: tenant moved to export-only', [
+                'tenant_id' => $tenant->id,
+                'customer' => $customerId,
+                'export_only_until' => $tenant->export_only_until->toIso8601String(),
+            ]);
+        }
 
         try {
             $marked = app(TenantBilling::class)->markOpenInvoicesUncollectible($tenant);

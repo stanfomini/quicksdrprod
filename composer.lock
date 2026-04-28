@@ -5338,12 +5338,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:stanfomini/quick-claimstaker.git",
-                "reference": "cb8ac789e0f0b0251a78f659cf82cb8e100e10f5"
+                "reference": "fe7d45b1ae548e5fe999d099f6d3ee5a4def562b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stanfomini/quick-claimstaker/zipball/cb8ac789e0f0b0251a78f659cf82cb8e100e10f5",
-                "reference": "cb8ac789e0f0b0251a78f659cf82cb8e100e10f5",
+                "url": "https://api.github.com/repos/stanfomini/quick-claimstaker/zipball/fe7d45b1ae548e5fe999d099f6d3ee5a4def562b",
+                "reference": "fe7d45b1ae548e5fe999d099f6d3ee5a4def562b",
                 "shasum": ""
             },
             "require": {
@@ -5381,10 +5381,10 @@
             ],
             "description": "Power dialer, smart queue, RVM, and call intelligence for Laravel",
             "support": {
-                "source": "https://github.com/stanfomini/quick-claimstaker/tree/v0.6.8",
+                "source": "https://github.com/stanfomini/quick-claimstaker/tree/v0.6.9",
                 "issues": "https://github.com/stanfomini/quick-claimstaker/issues"
             },
-            "time": "2026-04-28T16:54:28+00:00"
+            "time": "2026-04-28T16:57:53+00:00"
         },
         {
             "name": "stripe/stripe-php",

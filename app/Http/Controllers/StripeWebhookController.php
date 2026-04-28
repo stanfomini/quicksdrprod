@@ -7,6 +7,7 @@ use App\Jobs\ProvisionTenantServer;
 use App\Mail\PaymentFailed;
 use App\Mail\TrialWillEnd;
 use App\Models\Tenant;
+use App\Services\Provisioning\TenantBilling;
 use App\Services\Provisioning\TenantSubscriptionSyncer;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -179,7 +180,9 @@ class StripeWebhookController extends CashierWebhookController
 
     /**
      * Handle a cancelled subscription. Move the tenant to ExportOnly with a
-     * 7-day grace window. The daily sweep command destroys expired tenants.
+     * 7-day grace window, and clean up any open invoices left behind by
+     * marking them uncollectible. The daily sweep command destroys expired
+     * tenants after the grace period.
      */
     protected function handleCustomerSubscriptionDeleted(array $payload): Response
     {
@@ -209,6 +212,23 @@ class StripeWebhookController extends CashierWebhookController
             'customer' => $customerId,
             'export_only_until' => $tenant->export_only_until->toIso8601String(),
         ]);
+
+        try {
+            $marked = app(TenantBilling::class)->markOpenInvoicesUncollectible($tenant);
+
+            if ($marked > 0) {
+                Log::warning('stripe.subscription_deleted: marked open invoices uncollectible', [
+                    'tenant_id' => $tenant->id,
+                    'customer' => $customerId,
+                    'count' => $marked,
+                ]);
+            }
+        } catch (Throwable $e) {
+            Log::warning('stripe.subscription_deleted: invoice cleanup failed', [
+                'tenant_id' => $tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $this->successMethod();
     }

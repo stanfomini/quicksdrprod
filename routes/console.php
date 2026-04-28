@@ -24,4 +24,6 @@ if (config('app.mode') === 'orchestrator') {
             ->where('export_only_until', '<', now())
             ->each(fn (Tenant $t) => DestroyTenantServer::dispatch($t));
     })->name('tenants:destroy-expired')->daily();
+
+    Schedule::command('tenants:enforce-billing')->name('tenants:enforce-billing')->daily();
 }

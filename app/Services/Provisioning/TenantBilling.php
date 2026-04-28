@@ -100,4 +100,44 @@ class TenantBilling
 
         return $session->url;
     }
+
+    /**
+     * Force-cancel the tenant's Stripe subscription immediately (no proration,
+     * no period-end wait). Stripe fires customer.subscription.deleted, which
+     * the webhook handler turns into the existing ExportOnly transition.
+     */
+    public function cancelSubscription(Tenant $tenant): void
+    {
+        if (! $tenant->stripe_subscription_id) {
+            throw new RuntimeException('Tenant has no Stripe subscription to cancel.');
+        }
+
+        $this->stripe->subscriptions->cancel($tenant->stripe_subscription_id, []);
+    }
+
+    /**
+     * Mark every open (unpaid) invoice for the tenant's Stripe customer as
+     * uncollectible. Used when we cancel a tenant for non-payment so we
+     * don't leave dangling open invoices behind. Returns the count.
+     */
+    public function markOpenInvoicesUncollectible(Tenant $tenant): int
+    {
+        if (! $tenant->stripe_customer_id) {
+            return 0;
+        }
+
+        $list = $this->stripe->invoices->all([
+            'customer' => $tenant->stripe_customer_id,
+            'status' => 'open',
+            'limit' => 100,
+        ]);
+
+        $count = 0;
+        foreach ($list->data as $invoice) {
+            $this->stripe->invoices->markUncollectible($invoice->id, []);
+            $count++;
+        }
+
+        return $count;
+    }
 }

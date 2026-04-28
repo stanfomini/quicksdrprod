@@ -1,12 +1,25 @@
 <div
     class="flex flex-col gap-6 p-6"
     x-data="{
-        copy(text) {
-            if (!text) return;
-            navigator.clipboard.writeText(text);
+        async copyFromWire(promise, successMessage, emptyMessage) {
+            const url = await promise;
+            if (! url) {
+                if (emptyMessage) {
+                    $dispatch('toast', { type: 'warning', message: emptyMessage });
+                }
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(url);
+                $dispatch('toast', { type: 'success', message: successMessage });
+            } catch (e) {
+                $dispatch('toast', { type: 'danger', message: 'Clipboard blocked by browser — copy manually: ' + url });
+            }
+        },
+        async copyText(text, successMessage, emptyMessage) {
+            await this.copyFromWire(Promise.resolve(text), successMessage, emptyMessage);
         },
     }"
-    @copy-to-clipboard.window="copy($event.detail.text)"
     @toast.window="window.dispatchEvent(new CustomEvent('flux-toast', { detail: $event.detail }))"
     x-init="
         if (typeof window.Echo !== 'undefined') {
@@ -150,7 +163,7 @@
         @endif
 
         @if ($tenant->admin_signup_url)
-            <flux:button wire:click="copySignupUrl" variant="ghost" icon="clipboard">Copy admin signup URL</flux:button>
+            <flux:button x-on:click="copyFromWire($wire.adminSignupUrl(), 'Admin signup URL copied to clipboard.', 'No signup URL on this tenant.')" variant="ghost" icon="clipboard">Copy admin signup URL</flux:button>
         @endif
 
         {{-- Tenant-server admin reset: only on Ready tenants with a real site --}}
@@ -215,7 +228,7 @@
                 {{ $paymentLinkUrl }}
             </div>
             <div class="flex flex-wrap gap-2">
-                <flux:button wire:click="copyPaymentLink" variant="ghost" icon="clipboard" size="sm">Copy URL</flux:button>
+                <flux:button x-on:click="copyText(@js($paymentLinkUrl), 'Payment link copied to clipboard.')" variant="ghost" icon="clipboard" size="sm">Copy URL</flux:button>
                 @unless ($tenant->stripe_customer_id)
                     <flux:button wire:click="emailPaymentLink" variant="primary" icon="envelope" size="sm">
                         <span wire:loading.remove wire:target="emailPaymentLink">Email to {{ $tenant->admin_email }}</span>
@@ -501,9 +514,9 @@
             <flux:heading size="lg">Billing</flux:heading>
             @if ($tenant->stripe_customer_id)
                 <div class="flex gap-2">
-                    <flux:button wire:click="openBillingPortal" variant="ghost" size="sm" icon="link">
-                        <span wire:loading.remove wire:target="openBillingPortal">Copy customer portal link</span>
-                        <span wire:loading wire:target="openBillingPortal">Generating…</span>
+                    <flux:button x-on:click="copyFromWire($wire.fetchBillingPortalUrl(), 'Billing portal URL copied to clipboard.')" variant="ghost" size="sm" icon="link">
+                        <span wire:loading.remove wire:target="fetchBillingPortalUrl">Copy customer portal link</span>
+                        <span wire:loading wire:target="fetchBillingPortalUrl">Generating…</span>
                     </flux:button>
                     <flux:button variant="ghost" size="sm" icon="arrow-top-right-on-square" :href="'https://dashboard.stripe.com/customers/' . $tenant->stripe_customer_id" target="_blank">Open in Stripe</flux:button>
                 </div>

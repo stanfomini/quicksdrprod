@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Tenants;
 
 use App\Enums\TenantStatus;
+use App\Enums\TenantTier;
 use App\Jobs\DestroyTenantServer;
 use App\Jobs\ProvisionTenantServer;
 use App\Models\Tenant;
@@ -97,7 +98,7 @@ class Show extends Component
      */
     public function generateHourlyLink(StripeCheckout $checkout): void
     {
-        if ($this->tenant->tier !== \App\Enums\TenantTier::Tier4) {
+        if ($this->tenant->tier !== TenantTier::Tier4) {
             $this->dispatch('toast', type: 'warning', message: 'Hourly invoice is only for Tier 4.');
 
             return;
@@ -169,20 +170,6 @@ class Show extends Component
         }
     }
 
-    public function copyPaymentLink(): void
-    {
-        $url = $this->paymentLinkUrl;
-
-        if (! $url) {
-            $this->dispatch('toast', type: 'warning', message: 'Generate a payment link first.');
-
-            return;
-        }
-
-        $this->dispatch('copy-to-clipboard', text: $url);
-        $this->dispatch('toast', type: 'success', message: 'Copied to clipboard.');
-    }
-
     public function emailPaymentLink(): void
     {
         $url = $this->paymentLinkUrl;
@@ -204,7 +191,7 @@ class Show extends Component
             ."{$url}\n\n"
             ."Plan: {$tier->label()} ({$setupFee}{$monthly})\n"
             ."Your subdomain: {$tenant->subdomain}.quicksdr.com\n\n"
-            ."Once payment completes, your dedicated server will start building automatically. "
+            .'Once payment completes, your dedicated server will start building automatically. '
             ."You'll receive login credentials by email within 15 minutes.\n\n"
             ."Questions? Reply to this email or call me directly.\n\n"
             ."— Matthew\nQuickSDR",
@@ -400,7 +387,7 @@ class Show extends Component
                 ."{$url}\n\n"
                 ."If the link expires before you use it, go to {$appUrl}/forgot-password and request a new one — your account is already set up.\n\n"
                 ."Questions? Reply to this email.\n\n"
-                ."— QuickSDR",
+                .'— QuickSDR',
                 fn ($m) => $m
                     ->to($data['inviteEmail'])
                     ->subject("You're invited as an admin on {$businessLabel}")
@@ -424,25 +411,13 @@ class Show extends Component
 
     /**
      * Returns the decrypted admin signup URL for clipboard copy. Called
-     * imperatively from the view via a wire:click so we don't serialize the
-     * plaintext into the page for no reason.
+     * imperatively from the view via Alpine $wire so we don't serialize the
+     * plaintext into the page for no reason. Must return inside the same
+     * user-gesture chain to satisfy navigator.clipboard.writeText().
      */
     public function adminSignupUrl(): ?string
     {
         return $this->tenant->admin_signup_url;
-    }
-
-    public function copySignupUrl(): void
-    {
-        $url = $this->adminSignupUrl();
-
-        if ($url === null || $url === '') {
-            $this->dispatch('toast', type: 'warning', message: 'No signup URL on this tenant.');
-
-            return;
-        }
-
-        $this->dispatch('copy-to-clipboard', text: $url);
     }
 
     #[Computed]
@@ -499,31 +474,34 @@ class Show extends Component
     }
 
     /**
-     * Generate a Stripe Billing Portal URL for this tenant's customer.
-     * Matthew can copy it to share with the customer (single-use, ~24h).
+     * Generate a Stripe Billing Portal URL for this tenant's customer and
+     * return it to the caller. Called from Alpine inside a click handler so
+     * the clipboard write stays within the user-gesture chain — see the
+     * blade button at resources/views/livewire/admin/tenants/show.blade.php.
+     * Single-use, ~24h. Returns null on warning/error (toast already
+     * dispatched) so the Alpine handler can no-op.
      */
-    public function openBillingPortal(): void
+    public function fetchBillingPortalUrl(): ?string
     {
         if (! $this->tenant->stripe_customer_id) {
             $this->dispatch('toast', type: 'warning', message: 'No Stripe customer yet — generate a payment link first.');
 
-            return;
+            return null;
         }
 
         try {
-            $url = app(TenantBilling::class)->billingPortalUrl(
+            return app(TenantBilling::class)->billingPortalUrl(
                 $this->tenant,
                 returnUrl: route('admin.tenants.show', $this->tenant),
             );
-
-            $this->dispatch('copy-to-clipboard', text: $url);
-            $this->dispatch('toast', type: 'success', message: 'Billing portal URL copied to clipboard.');
         } catch (\Throwable $e) {
-            Log::error('openBillingPortal failed', [
+            Log::error('fetchBillingPortalUrl failed', [
                 'tenant_id' => $this->tenant->id,
                 'error' => $e->getMessage(),
             ]);
             $this->dispatch('toast', type: 'danger', message: 'Stripe error: '.$e->getMessage());
+
+            return null;
         }
     }
 

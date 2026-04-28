@@ -69,7 +69,7 @@
         <div class="qsdr-prose mx-auto max-w-3xl px-6 text-base text-zinc-700 sm:text-lg">
 
             <p>
-                This Privacy Policy explains how QuickSDR (operated by Script &amp; Automations LLC, "we", "us") collects, uses, and protects information when you use the QuickSDR platform at quicksdr.com and the dedicated server we provision for your account.
+                This Privacy Policy explains how QuickSDR (operated by Quick Technologies, Inc., a Wyoming corporation — "we", "us") collects, uses, and protects information when you use the QuickSDR platform at quicksdr.com and the dedicated server we provision for your account. QuickSDR is offered to customers throughout the United States; this policy applies regardless of which state you operate from.
             </p>
 
             <div class="callout">
@@ -79,7 +79,7 @@
             <h2>1. Who runs this site, and who owns your server</h2>
 
             <p>
-                QuickSDR is operated by Script &amp; Automations LLC. Our marketing and signup flow runs at quicksdr.com. When you provision a tier that includes a server (Tiers 1–3), we create a dedicated, single-tenant cloud server for your account through our infrastructure provider (currently DigitalOcean, deployed and managed via Laravel Forge).
+                QuickSDR is a product of Quick Technologies, Inc., a C-Corporation registered in the State of Wyoming. Our marketing and signup flow runs at quicksdr.com, and we serve customers nationwide. When you provision a tier that includes a server (Tiers 1–3), we create a dedicated, single-tenant cloud server for your account through our infrastructure provider (currently DigitalOcean, deployed and managed via Laravel Forge).
             </p>
             <p>
                 <strong>That server is yours.</strong> The application database, contact lists, call logs, recordings, transcripts, and AI scoring outputs all live on that server only. We do not aggregate your call data with other customers' data. Other QuickSDR customers cannot access your server.
@@ -242,7 +242,7 @@
             <p>
                 Questions about this privacy policy?
                 Email <a href="mailto:matthew@scriptandautomations.com">matthew@scriptandautomations.com</a>
-                or write to Script &amp; Automations LLC at the address on file with our state of incorporation.
+                or write to Quick Technologies, Inc., c/o the registered agent of record on file with the Wyoming Secretary of State, Sheridan County, Wyoming.
             </p>
 
             <div class="callout">

@@ -70,7 +70,7 @@
         <div class="qsdr-prose mx-auto max-w-3xl px-6 text-base text-zinc-700 sm:text-lg">
 
             <p>
-                These Terms of Service ("Terms") govern your access to and use of the QuickSDR platform, the dedicated server we provision for your account, and any related services (collectively, the "Services") provided by Script &amp; Automations LLC ("QuickSDR", "we", "us"). By signing up for or using the Services, you agree to these Terms. If you don't agree, don't use the Services.
+                These Terms of Service ("Terms") govern your access to and use of the QuickSDR platform, the dedicated server we provision for your account, and any related services (collectively, the "Services") provided by Quick Technologies, Inc., a Wyoming C-Corporation ("QuickSDR", "we", "us"). The Services are offered to customers across the United States. By signing up for or using the Services, you agree to these Terms regardless of the state from which you operate. If you don't agree, don't use the Services.
             </p>
 
             <div class="callout">
@@ -247,13 +247,43 @@
                 We may modify, add, or remove features over time. We will provide reasonable notice of material breaking changes. We may also update these Terms; the "Effective date" at the top reflects the most recent version. Material changes will be communicated via email to active customers, and continued use of the Services after the effective date constitutes acceptance.
             </p>
 
-            <h2>14. Governing law &amp; disputes</h2>
+            <h2>14. Governing law, arbitration &amp; class-action waiver</h2>
 
+            <h3>14.1 Governing law</h3>
             <p>
-                These Terms are governed by the laws of the Commonwealth of Virginia, USA, without regard to its conflict-of-laws principles. Any dispute arising out of or related to these Terms will be brought exclusively in the state or federal courts located in Virginia Beach, Virginia, and you and QuickSDR consent to the personal jurisdiction of those courts.
+                These Terms are governed by and construed in accordance with the laws of the State of Wyoming, USA, without regard to its conflict-of-laws principles. The United Nations Convention on Contracts for the International Sale of Goods does not apply.
+            </p>
+
+            <h3>14.2 Binding arbitration</h3>
+            <p class="legal-emph">
+                Any dispute, claim, or controversy arising out of or relating to these Terms or the Services — including their formation, validity, breach, or termination — will be resolved exclusively by final and binding arbitration administered by the American Arbitration Association ("AAA") under its Commercial Arbitration Rules then in effect.
             </p>
             <p>
-                Nothing in this section limits either party's right to seek injunctive or equitable relief in any court of competent jurisdiction to protect intellectual property or confidential information.
+                The arbitration will be conducted by a single neutral arbitrator. The seat (legal place) of arbitration is Sheridan County, Wyoming. The arbitration may be conducted by videoconference, telephone, or by document submission, and an in-person hearing in Wyoming will be available at either party's request. The arbitrator's award is final and may be entered as a judgment in any court of competent jurisdiction. The arbitrator — and not any federal, state, or local court — has exclusive authority to decide all issues relating to scope, enforceability, and arbitrability of these Terms.
+            </p>
+
+            <h3>14.3 Class-action waiver</h3>
+            <p class="legal-emph">
+                You and QuickSDR agree that each may bring claims against the other only in your or its individual capacity, and not as a plaintiff or class member in any purported class, collective, consolidated, or representative proceeding. The arbitrator may not consolidate claims of more than one person and may not preside over any form of representative or class proceeding. If a court decides that this class-action waiver is unenforceable as to any particular claim, that claim (and only that claim) must be brought in court rather than arbitration; the rest of these Terms remain in force.
+            </p>
+
+            <h3>14.4 Carve-outs</h3>
+            <p>
+                Notwithstanding 14.2, either party may:
+            </p>
+            <ul>
+                <li>Bring a claim in <strong>small-claims court</strong> in your home jurisdiction if the claim qualifies under that court's monetary limits and procedural rules; and</li>
+                <li>Seek <strong>injunctive or equitable relief</strong> in any court of competent jurisdiction to prevent actual or threatened infringement of intellectual property or breach of confidentiality obligations, pending arbitration of the underlying dispute.</li>
+            </ul>
+
+            <h3>14.5 Fees and costs</h3>
+            <p>
+                Each party bears its own attorneys' fees and costs in arbitration unless the arbitrator awards them under applicable law. AAA filing fees and arbitrator compensation are allocated under the AAA Commercial Rules; QuickSDR will pay any portion of AAA fees that exceeds what you would have paid in court for the same claim, where required by law.
+            </p>
+
+            <h3>14.6 30-day right to opt out</h3>
+            <p>
+                You may opt out of this arbitration agreement (Sections 14.2 and 14.3 only) by emailing <a href="mailto:matthew@scriptandautomations.com">matthew@scriptandautomations.com</a> within 30 days of first accepting these Terms, with the subject line "Arbitration Opt-Out" and stating your account email and intent to opt out. Opting out does not affect any other provision of these Terms; if you opt out, disputes proceed in the state or federal courts located in Sheridan County, Wyoming, and you and QuickSDR consent to the personal jurisdiction of those courts.
             </p>
 
             <h2>15. Miscellaneous</h2>
@@ -269,7 +299,7 @@
             <h2>16. Contact</h2>
 
             <p>
-                Questions about these Terms? Email <a href="mailto:matthew@scriptandautomations.com">matthew@scriptandautomations.com</a> or write to Script &amp; Automations LLC at the address on file with our state of incorporation.
+                Questions about these Terms? Email <a href="mailto:matthew@scriptandautomations.com">matthew@scriptandautomations.com</a> or write to Quick Technologies, Inc., c/o the registered agent of record on file with the Wyoming Secretary of State, Sheridan County, Wyoming.
             </p>
 
             <div class="callout">

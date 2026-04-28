@@ -22,6 +22,8 @@ Route::view('/about', 'about')->name('about');
 Route::view('/contact', 'contact')->name('contact');
 Route::view('/for-agencies', 'for-agencies')->name('for-agencies');
 Route::view('/for-sales-teams', 'for-sales-teams')->name('for-sales-teams');
+Route::view('/privacy', 'privacy')->name('privacy');
+Route::view('/terms', 'terms')->name('terms');
 
 Route::get('/admin-signup/{token}', [AdminSignupController::class, 'show'])->name('admin-signup.show');
 Route::post('/admin-signup/{token}', [AdminSignupController::class, 'store'])->name('admin-signup.store');

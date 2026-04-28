@@ -143,6 +143,8 @@
                         <li><a href="/about" class="text-zinc-400 transition hover:text-zinc-100">About</a></li>
                         <li><a href="/contact" class="text-zinc-400 transition hover:text-zinc-100">Contact</a></li>
                         <li><a href="/contact-sales" class="text-zinc-400 transition hover:text-zinc-100">Talk to sales</a></li>
+                        <li><a href="{{ route('privacy') }}" class="text-zinc-400 transition hover:text-zinc-100">Privacy Policy</a></li>
+                        <li><a href="{{ route('terms') }}" class="text-zinc-400 transition hover:text-zinc-100">Terms of Service</a></li>
                         <li><a href="{{ route('login') }}" class="text-zinc-400 transition hover:text-zinc-100">Sign in</a></li>
                     </ul>
                 </div>

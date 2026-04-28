@@ -346,23 +346,7 @@
     </section>
 
     {{-- Footer --}}
-    <footer class="border-t border-zinc-200 bg-zinc-100 py-12">
-        <div class="mx-auto max-w-6xl px-6">
-            <div class="flex flex-col items-center justify-between gap-4 sm:flex-row">
-                <a href="{{ route('home') }}" class="flex items-center gap-2" aria-label="QuickSDR home">
-                    <img src="/brand/qsdr-logo.svg" alt="QuickSDR" class="h-7 w-auto">
-                </a>
-                <nav class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-zinc-600" aria-label="Footer">
-                    <a href="{{ route('home') }}" class="transition hover:text-zinc-900">Home</a>
-                    <a href="{{ route('for-sales-teams') }}" class="transition hover:text-zinc-900">For Sales Teams</a>
-                    <a href="{{ route('home') }}#pricing" class="transition hover:text-zinc-900">Pricing</a>
-                    <a href="/about" class="transition hover:text-zinc-900">About</a>
-                    <a href="/contact" class="transition hover:text-zinc-900">Contact</a>
-                </nav>
-                <p class="text-xs text-zinc-500">&copy; {{ date('Y') }} QuickSDR.</p>
-            </div>
-        </div>
-    </footer>
+    @include('partials.public-footer')
 
     @fluxScripts
 </body>

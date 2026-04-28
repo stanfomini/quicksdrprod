@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'landing')->name('home');
 Route::view('/about', 'about')->name('about');
 Route::view('/contact', 'contact')->name('contact');
+Route::view('/for-agencies', 'for-agencies')->name('for-agencies');
+Route::view('/for-sales-teams', 'for-sales-teams')->name('for-sales-teams');
 
 Route::get('/admin-signup/{token}', [AdminSignupController::class, 'show'])->name('admin-signup.show');
 Route::post('/admin-signup/{token}', [AdminSignupController::class, 'store'])->name('admin-signup.store');

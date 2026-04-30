@@ -11,6 +11,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 
@@ -26,7 +28,7 @@ class SurveyForm
                             ->required()
                             ->maxLength(255)
                             ->live(onBlur: true)
-                            ->afterStateUpdated(function (?string $state, callable $set, ?string $get) {
+                            ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
                                 if ($state && empty($get('slug'))) {
                                     $set('slug', Str::slug($state));
                                 }
@@ -73,7 +75,7 @@ class SurveyForm
                                     ->default(false),
                                 Repeater::make('options.choices')
                                     ->label('Choices')
-                                    ->visible(fn (callable $get): bool => SurveyQuestionType::tryFrom((string) $get('type'))?->needsOptions() ?? false)
+                                    ->visible(fn (Get $get): bool => SurveyQuestionType::tryFrom((string) $get('type'))?->needsOptions() ?? false)
                                     ->schema([
                                         TextInput::make('value')->required(),
                                         TextInput::make('label')->required(),
@@ -86,7 +88,7 @@ class SurveyForm
                                     ->label('Maximum value')
                                     ->numeric()
                                     ->default(5)
-                                    ->visible(fn (callable $get): bool => in_array(
+                                    ->visible(fn (Get $get): bool => in_array(
                                         SurveyQuestionType::tryFrom((string) $get('type')),
                                         [SurveyQuestionType::Scale, SurveyQuestionType::Rating],
                                         true,

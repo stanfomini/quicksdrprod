@@ -80,6 +80,46 @@ class Survey extends Model
         return route('public-survey.show', $this->slug);
     }
 
+    /**
+     * Detect the kind of video URL set on cover_video_url so the renderer
+     * knows which embed strategy to use.
+     *
+     * @return array{kind: 'youtube'|'vimeo'|'file'|'iframe'|'none', url: ?string, embed: ?string}
+     */
+    public function coverVideoEmbed(): array
+    {
+        $url = trim((string) ($this->cover_video_url ?? ''));
+        if ($url === '') {
+            return ['kind' => 'none', 'url' => null, 'embed' => null];
+        }
+
+        // YouTube — accept youtu.be/<id> and youtube.com/watch?v=<id> and shorts
+        if (preg_match('~(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/))([A-Za-z0-9_-]{11})~', $url, $m)) {
+            return [
+                'kind' => 'youtube',
+                'url' => $url,
+                'embed' => 'https://www.youtube.com/embed/'.$m[1].'?rel=0',
+            ];
+        }
+
+        // Vimeo — vimeo.com/<numeric_id>
+        if (preg_match('~vimeo\.com/(?:video/)?(\d+)~', $url, $m)) {
+            return [
+                'kind' => 'vimeo',
+                'url' => $url,
+                'embed' => 'https://player.vimeo.com/video/'.$m[1],
+            ];
+        }
+
+        // Direct video file
+        if (preg_match('~\.(mp4|webm|mov|ogg|m4v)(\?.*)?$~i', $url)) {
+            return ['kind' => 'file', 'url' => $url, 'embed' => $url];
+        }
+
+        // Anything else is treated as a generic iframe URL (Loom, Wistia, etc.)
+        return ['kind' => 'iframe', 'url' => $url, 'embed' => $url];
+    }
+
     public function embedUrl(): string
     {
         return route('public-survey.embed', $this->slug);

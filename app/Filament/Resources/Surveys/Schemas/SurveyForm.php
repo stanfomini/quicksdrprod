@@ -246,6 +246,13 @@ class SurveyForm
                         ->directory('survey-covers')
                         ->columnSpanFull()
                         ->helperText('Shown above the survey title on the public page.'),
+                    TextInput::make('cover_video_url')
+                        ->label('Intro video URL')
+                        ->url()
+                        ->maxLength(500)
+                        ->columnSpanFull()
+                        ->placeholder('https://www.youtube.com/watch?v=… or https://vimeo.com/… or a direct .mp4 URL')
+                        ->helperText('Plays on the intro screen above the title. YouTube, Vimeo, and direct video files (.mp4 / .webm / .mov / .ogg) are supported. If both this and a cover image are set, the video takes the intro slot and the image still shows on form pages.'),
                 ])
                 ->columns(2),
         ];

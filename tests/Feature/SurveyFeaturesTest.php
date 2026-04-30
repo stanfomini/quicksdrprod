@@ -461,3 +461,52 @@ test('starts_new_step is ignored when multi_step is off', function () {
     $component = Livewire::test('survey-form', ['survey' => $survey]);
     expect($component->viewData('isMultiStep'))->toBeFalse();
 });
+
+test('coverVideoEmbed returns YouTube embed for a watch URL', function () {
+    $survey = Survey::factory()->make(['cover_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ']);
+    expect($survey->coverVideoEmbed())->toMatchArray([
+        'kind' => 'youtube',
+        'embed' => 'https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0',
+    ]);
+});
+
+test('coverVideoEmbed returns YouTube embed for a youtu.be short URL', function () {
+    $survey = Survey::factory()->make(['cover_video_url' => 'https://youtu.be/dQw4w9WgXcQ']);
+    expect($survey->coverVideoEmbed()['kind'])->toBe('youtube');
+    expect($survey->coverVideoEmbed()['embed'])->toBe('https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0');
+});
+
+test('coverVideoEmbed returns Vimeo embed', function () {
+    $survey = Survey::factory()->make(['cover_video_url' => 'https://vimeo.com/123456789']);
+    expect($survey->coverVideoEmbed())->toMatchArray([
+        'kind' => 'vimeo',
+        'embed' => 'https://player.vimeo.com/video/123456789',
+    ]);
+});
+
+test('coverVideoEmbed returns file kind for direct .mp4 URLs', function () {
+    $survey = Survey::factory()->make(['cover_video_url' => 'https://cdn.example.com/intro.mp4']);
+    expect($survey->coverVideoEmbed()['kind'])->toBe('file');
+});
+
+test('coverVideoEmbed returns iframe kind for unknown providers', function () {
+    $survey = Survey::factory()->make(['cover_video_url' => 'https://www.loom.com/share/abc123']);
+    expect($survey->coverVideoEmbed()['kind'])->toBe('iframe');
+});
+
+test('coverVideoEmbed returns none when no video URL is set', function () {
+    $survey = Survey::factory()->make(['cover_video_url' => null]);
+    expect($survey->coverVideoEmbed()['kind'])->toBe('none');
+});
+
+test('intro screen renders the YouTube iframe when video URL is set', function () {
+    $survey = Survey::factory()->create([
+        'cover_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        'slug' => 'video-survey',
+    ]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'order' => 1]);
+
+    $this->get('/s/'.$survey->slug)
+        ->assertOk()
+        ->assertSee('youtube.com/embed/dQw4w9WgXcQ', false);
+});

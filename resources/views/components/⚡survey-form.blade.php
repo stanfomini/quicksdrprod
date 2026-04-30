@@ -46,7 +46,7 @@ new class extends Component
 
         if ($response) {
             $this->started = true;
-        } elseif (empty($survey->intro_message) && empty($survey->cover_image_path)) {
+        } elseif (empty($survey->intro_message) && empty($survey->cover_image_path) && empty($survey->cover_video_url)) {
             $this->started = true;
         }
 
@@ -346,23 +346,54 @@ new class extends Component
             </div>
 
         @elseif (! $started)
-            <div class="rounded-lg border p-8 bg-white dark:bg-zinc-900 dark:border-zinc-800">
-                <flux:heading size="xl">{{ $survey->title }}</flux:heading>
+            @php($video = $survey->coverVideoEmbed())
 
-                @if (! empty($survey->intro_message))
-                    <div class="mt-4 text-zinc-700 dark:text-zinc-300 prose">
-                        {!! nl2br(e($survey->intro_message)) !!}
+            <div class="rounded-lg border bg-white dark:bg-zinc-900 dark:border-zinc-800 overflow-hidden">
+                @if ($video['kind'] !== 'none')
+                    <div class="relative w-full" style="padding-top: 56.25%; background: #000;">
+                        @if ($video['kind'] === 'file')
+                            <video
+                                class="absolute inset-0 w-full h-full"
+                                controls
+                                preload="metadata"
+                                @if ($survey->cover_image_path)
+                                    poster="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($survey->cover_image_path) }}"
+                                @endif
+                            >
+                                <source src="{{ $video['embed'] }}">
+                                Your browser doesn't support embedded video.
+                            </video>
+                        @else
+                            <iframe
+                                class="absolute inset-0 w-full h-full border-0"
+                                src="{{ $video['embed'] }}"
+                                title="Survey intro video"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen
+                                loading="lazy"
+                            ></iframe>
+                        @endif
                     </div>
                 @endif
 
-                <div class="mt-6">
-                    <button
-                        type="button"
-                        wire:click="start"
-                        class="btn-primary text-white px-5 py-2.5 rounded-md font-medium"
-                    >
-                        Start
-                    </button>
+                <div class="p-8">
+                    <flux:heading size="xl">{{ $survey->title }}</flux:heading>
+
+                    @if (! empty($survey->intro_message))
+                        <div class="mt-4 text-zinc-700 dark:text-zinc-300 prose">
+                            {!! nl2br(e($survey->intro_message)) !!}
+                        </div>
+                    @endif
+
+                    <div class="mt-6">
+                        <button
+                            type="button"
+                            wire:click="start"
+                            class="btn-primary text-white px-5 py-2.5 rounded-md font-medium"
+                        >
+                            Start
+                        </button>
+                    </div>
                 </div>
             </div>
 

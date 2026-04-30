@@ -293,3 +293,112 @@ test('progress count updates as answers come in', function () {
     $component->set('answers.'.$q2->id, 'a@b.com');
     expect($component->viewData('answeredCount'))->toBe(2);
 });
+
+test('multi-step splits questions on section dividers', function () {
+    $survey = Survey::factory()->create(['multi_step' => true]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Name', 'order' => 1]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Section, 'label' => 'Contact info', 'order' => 2]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Email, 'label' => 'Email', 'order' => 3]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Section, 'label' => 'Feedback', 'order' => 4]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Textarea, 'label' => 'Comments', 'order' => 5]);
+
+    $component = Livewire::test('survey-form', ['survey' => $survey]);
+
+    expect($component->viewData('totalSteps'))->toBe(3);
+    expect($component->viewData('isMultiStep'))->toBeTrue();
+    expect($component->viewData('isFirstStep'))->toBeTrue();
+    expect($component->viewData('isLastStep'))->toBeFalse();
+});
+
+test('next step validates current step before advancing', function () {
+    $survey = Survey::factory()->create(['multi_step' => true]);
+    $q1 = SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Text,
+        'label' => 'Required field',
+        'required' => true,
+        'order' => 1,
+    ]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Section, 'label' => 'Step 2', 'order' => 2]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Field 2', 'order' => 3]);
+
+    // Cannot advance without filling required field
+    Livewire::test('survey-form', ['survey' => $survey])
+        ->call('nextStep')
+        ->assertHasErrors(['answers.'.$q1->id])
+        ->assertSet('currentStep', 0);
+
+    // Can advance after filling
+    Livewire::test('survey-form', ['survey' => $survey])
+        ->set('answers.'.$q1->id, 'filled')
+        ->call('nextStep')
+        ->assertHasNoErrors()
+        ->assertSet('currentStep', 1);
+});
+
+test('prev step preserves answers and goes back', function () {
+    $survey = Survey::factory()->create(['multi_step' => true]);
+    $q1 = SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Q1', 'order' => 1]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Section, 'label' => 'Step 2', 'order' => 2]);
+    $q2 = SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Q2', 'order' => 3]);
+
+    $component = Livewire::test('survey-form', ['survey' => $survey])
+        ->set('answers.'.$q1->id, 'first')
+        ->call('nextStep')
+        ->set('answers.'.$q2->id, 'second')
+        ->call('prevStep');
+
+    expect($component->get('currentStep'))->toBe(0);
+    expect($component->get('answers.'.$q1->id))->toBe('first');
+    expect($component->get('answers.'.$q2->id))->toBe('second');
+});
+
+test('submit on intermediate step advances rather than finishing', function () {
+    $survey = Survey::factory()->create(['multi_step' => true]);
+    $q1 = SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Q1', 'order' => 1]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Section, 'label' => 'Step 2', 'order' => 2]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Q2', 'order' => 3]);
+
+    Livewire::test('survey-form', ['survey' => $survey])
+        ->set('answers.'.$q1->id, 'first')
+        ->call('submit')
+        ->assertSet('submitted', false)
+        ->assertSet('currentStep', 1);
+
+    expect(SurveyResponse::count())->toBe(0);
+});
+
+test('submit on last step persists the response', function () {
+    $survey = Survey::factory()->create(['multi_step' => true]);
+    $q1 = SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Q1', 'order' => 1]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Section, 'label' => 'Step 2', 'order' => 2]);
+    $q2 = SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Q2', 'order' => 3]);
+
+    Livewire::test('survey-form', ['survey' => $survey])
+        ->set('answers.'.$q1->id, 'first')
+        ->call('nextStep')
+        ->set('answers.'.$q2->id, 'second')
+        ->call('submit')
+        ->assertSet('submitted', true);
+
+    expect(SurveyResponse::count())->toBe(1);
+    expect(SurveyResponse::first()->isCompleted())->toBeTrue();
+});
+
+test('single-page mode submits in one shot regardless of sections', function () {
+    $survey = Survey::factory()->create(['multi_step' => false]);
+    $q1 = SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Q1', 'order' => 1]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Section, 'label' => 'Sec', 'order' => 2]);
+    $q2 = SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Q2', 'order' => 3]);
+
+    $component = Livewire::test('survey-form', ['survey' => $survey]);
+    expect($component->viewData('isMultiStep'))->toBeFalse();
+    expect($component->viewData('totalSteps'))->toBe(2); // steps still computed but not used
+
+    $component
+        ->set('answers.'.$q1->id, 'a')
+        ->set('answers.'.$q2->id, 'b')
+        ->call('submit')
+        ->assertSet('submitted', true);
+
+    expect(SurveyResponse::count())->toBe(1);
+});

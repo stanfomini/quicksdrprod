@@ -24,6 +24,7 @@ class Survey extends Model
     protected $attributes = [
         'brand_color' => '#10b981',
         'show_progress_bar' => true,
+        'multi_step' => false,
         'notify_respondent' => false,
         'require_unique_email' => false,
         'status' => 'draft',
@@ -37,6 +38,7 @@ class Survey extends Model
             'settings' => 'array',
             'published_at' => 'datetime',
             'show_progress_bar' => 'boolean',
+            'multi_step' => 'boolean',
             'notify_respondent' => 'boolean',
             'require_unique_email' => 'boolean',
         ];

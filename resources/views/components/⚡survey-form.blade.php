@@ -5,6 +5,7 @@ use App\Events\SurveyResponseSubmitted;
 use App\Models\Survey;
 use App\Models\SurveyAnswer;
 use App\Models\SurveyResponse;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -26,6 +27,8 @@ new class extends Component
 
     public bool $submitted = false;
 
+    public int $currentStep = 0;
+
     public string $hp_field = '';
 
     /** @var array<int, mixed> */
@@ -41,11 +44,9 @@ new class extends Component
             $this->submitted = true;
         }
 
-        // Token-based response: skip the cover screen since they came via a personal link.
         if ($response) {
             $this->started = true;
         } elseif (empty($survey->intro_message) && empty($survey->cover_image_path)) {
-            // No intro to show — go straight to questions.
             $this->started = true;
         }
 
@@ -66,9 +67,69 @@ new class extends Component
         $this->started = true;
     }
 
+    /**
+     * Group the survey's questions into steps based on Section dividers.
+     * Each step has a `title`, optional `help_text`, and a list of `questions`.
+     *
+     * @return array<int, array{title: ?string, help_text: ?string, questions: Collection}>
+     */
+    public function buildSteps(Survey $survey): array
+    {
+        $steps = [];
+        $current = ['title' => null, 'help_text' => null, 'questions' => collect()];
+
+        foreach ($survey->questions as $question) {
+            if ($question->type === SurveyQuestionType::Section) {
+                if ($current['questions']->isNotEmpty() || $current['title'] !== null) {
+                    $steps[] = $current;
+                }
+                $current = [
+                    'title' => $question->label,
+                    'help_text' => $question->help_text,
+                    'questions' => collect(),
+                ];
+
+                continue;
+            }
+
+            $current['questions']->push($question);
+        }
+
+        if ($current['questions']->isNotEmpty() || $current['title'] !== null) {
+            $steps[] = $current;
+        }
+
+        if ($steps === []) {
+            $steps[] = ['title' => null, 'help_text' => null, 'questions' => collect()];
+        }
+
+        return $steps;
+    }
+
+    public function nextStep(): void
+    {
+        $survey = Survey::with('questions')->findOrFail($this->surveyId);
+        $steps = $this->buildSteps($survey);
+
+        if (! $survey->multi_step || $this->currentStep >= count($steps) - 1) {
+            return;
+        }
+
+        $this->validateStep($steps[$this->currentStep]['questions']);
+        $this->currentStep++;
+    }
+
+    public function prevStep(): void
+    {
+        if ($this->currentStep > 0) {
+            $this->currentStep--;
+            // Clear validation state on going back so old errors don't linger.
+            $this->resetValidation();
+        }
+    }
+
     public function submit()
     {
-        // Honeypot — if a bot filled the hidden field, silently 200.
         if (! empty($this->hp_field)) {
             $this->submitted = true;
 
@@ -77,25 +138,21 @@ new class extends Component
 
         $survey = Survey::with('questions')->findOrFail($this->surveyId);
 
-        $rules = [];
-        $messages = [];
+        // In multi-step mode, only the LAST step's "submit" call goes through.
+        // For all earlier steps, submit() acts like nextStep().
+        if ($survey->multi_step) {
+            $steps = $this->buildSteps($survey);
+            if ($this->currentStep < count($steps) - 1) {
+                $this->validateStep($steps[$this->currentStep]['questions']);
+                $this->currentStep++;
 
-        foreach ($survey->questions as $question) {
-            if (! $question->type->isAnswerable()) {
-                continue;
+                return null;
             }
-            if (! $question->isVisible($this->answers)) {
-                continue;
-            }
-            $key = "answers.{$question->id}";
-            $rules[$key] = $question->validationRules();
-            $messages["{$key}.required"] = "“{$question->label}” is required.";
-            $messages["{$key}.email"] = "“{$question->label}” must be a valid email.";
-            $messages["{$key}.url"] = "“{$question->label}” must be a valid URL.";
-            $messages["{$key}.numeric"] = "“{$question->label}” must be a number.";
+            // Validate the final step before persisting.
+            $this->validateStep($steps[$this->currentStep]['questions']);
+        } else {
+            $this->validateStep($survey->questions);
         }
-
-        $this->validate($rules, $messages);
 
         $email = $this->extractEmail($survey);
 
@@ -131,7 +188,6 @@ new class extends Component
             }
             $raw = $this->answers[$question->id] ?? null;
 
-            // File uploads — store the file and persist the path.
             if ($question->type === SurveyQuestionType::FileUpload && $raw && method_exists($raw, 'store')) {
                 $raw = $raw->store('survey-uploads', 'public');
             }
@@ -159,6 +215,38 @@ new class extends Component
         return null;
     }
 
+    /**
+     * Build a rules+messages set for the given questions and run validate().
+     *
+     * @param  Collection<int, \App\Models\SurveyQuestion>|iterable  $questions
+     */
+    protected function validateStep(iterable $questions): void
+    {
+        $rules = [];
+        $messages = [];
+
+        foreach ($questions as $question) {
+            if (! $question->type->isAnswerable()) {
+                continue;
+            }
+            if (! $question->isVisible($this->answers)) {
+                continue;
+            }
+            $key = "answers.{$question->id}";
+            $rules[$key] = $question->validationRules();
+            $messages["{$key}.required"] = "“{$question->label}” is required.";
+            $messages["{$key}.email"] = "“{$question->label}” must be a valid email.";
+            $messages["{$key}.url"] = "“{$question->label}” must be a valid URL.";
+            $messages["{$key}.numeric"] = "“{$question->label}” must be a number.";
+        }
+
+        if ($rules === []) {
+            return;
+        }
+
+        $this->validate($rules, $messages);
+    }
+
     protected function extractEmail(Survey $survey): ?string
     {
         foreach ($survey->questions as $question) {
@@ -176,11 +264,34 @@ new class extends Component
     public function with(): array
     {
         $survey = Survey::with('questions')->findOrFail($this->surveyId);
+        $steps = $this->buildSteps($survey);
+        $isMultiStep = $survey->multi_step && count($steps) > 1;
+
+        // Clamp currentStep to valid range
+        if ($this->currentStep >= count($steps)) {
+            $this->currentStep = count($steps) - 1;
+        }
+        if ($this->currentStep < 0) {
+            $this->currentStep = 0;
+        }
+
+        if ($isMultiStep) {
+            $currentQuestions = $steps[$this->currentStep]['questions'];
+            $visibleQuestions = $currentQuestions->filter(fn ($q) => $q->isVisible($this->answers));
+        } else {
+            $visibleQuestions = $survey->questions->filter(fn ($q) => $q->isVisible($this->answers));
+        }
 
         return [
             'survey' => $survey,
             'questionType' => SurveyQuestionType::class,
-            'visibleQuestions' => $survey->questions->filter(fn ($q) => $q->isVisible($this->answers)),
+            'visibleQuestions' => $visibleQuestions,
+            'steps' => $steps,
+            'isMultiStep' => $isMultiStep,
+            'isLastStep' => $isMultiStep ? $this->currentStep === count($steps) - 1 : true,
+            'isFirstStep' => $this->currentStep === 0,
+            'totalSteps' => count($steps),
+            'currentStepData' => $isMultiStep ? $steps[$this->currentStep] : null,
             'answerableCount' => $survey->questions->filter(fn ($q) => $q->type->isAnswerable() && $q->isVisible($this->answers))->count(),
             'answeredCount' => collect($this->answers)
                 ->filter(fn ($v) => $v !== null && $v !== '' && $v !== [])
@@ -200,6 +311,7 @@ new class extends Component
         .survey-root .btn-primary { background-color: var(--survey-brand, #10b981); }
         .survey-root .btn-primary:hover { filter: brightness(0.95); }
         .survey-root .progress-fill { background-color: var(--survey-brand, #10b981); }
+        .survey-root .step-active { background-color: var(--survey-brand, #10b981); color: white; }
     </style>
 
     <div class="max-w-2xl mx-auto px-4">
@@ -226,7 +338,6 @@ new class extends Component
             </div>
 
         @elseif (! $started)
-            {{-- Cover / intro screen --}}
             <div class="rounded-lg border p-8 bg-white dark:bg-zinc-900 dark:border-zinc-800">
                 <flux:heading size="xl">{{ $survey->title }}</flux:heading>
 
@@ -251,15 +362,52 @@ new class extends Component
             <form wire:submit="submit" class="space-y-6">
                 <div>
                     <flux:heading size="xl">{{ $survey->title }}</flux:heading>
-                    @if ($survey->description && empty($survey->intro_message))
+                    @if ($survey->description && empty($survey->intro_message) && ! $isMultiStep)
                         <flux:text class="mt-2">{{ $survey->description }}</flux:text>
                     @endif
                 </div>
 
-                @if ($survey->show_progress_bar && $answerableCount > 0)
+                {{-- Step indicator --}}
+                @if ($isMultiStep)
+                    <div class="flex items-center gap-2">
+                        @for ($i = 0; $i < $totalSteps; $i++)
+                            <div class="flex-1 flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold border
+                                    {{ $i === $currentStep
+                                        ? 'step-active border-transparent'
+                                        : ($i < $currentStep
+                                            ? 'bg-emerald-500 text-white border-transparent'
+                                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700') }}">
+                                    @if ($i < $currentStep)
+                                        ✓
+                                    @else
+                                        {{ $i + 1 }}
+                                    @endif
+                                </div>
+                                @if ($i < $totalSteps - 1)
+                                    <div class="flex-1 h-0.5 {{ $i < $currentStep ? 'bg-emerald-500' : 'bg-zinc-200 dark:bg-zinc-800' }}"></div>
+                                @endif
+                            </div>
+                        @endfor
+                    </div>
+                    <div class="text-sm text-zinc-500 -mt-2">Step {{ $currentStep + 1 }} of {{ $totalSteps }}</div>
+                @endif
+
+                {{-- Progress bar (only show for single-page or if explicitly enabled) --}}
+                @if ($survey->show_progress_bar && ! $isMultiStep && $answerableCount > 0)
                     @php($pct = $answerableCount > 0 ? round(($answeredCount / $answerableCount) * 100) : 0)
                     <div class="h-1.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                         <div class="progress-fill h-full transition-all" style="width: {{ $pct }}%"></div>
+                    </div>
+                @endif
+
+                {{-- Step heading (multi-step only) --}}
+                @if ($isMultiStep && $currentStepData && $currentStepData['title'])
+                    <div class="border-l-4 pl-4 py-1" style="border-color: var(--survey-brand, #10b981);">
+                        <flux:heading size="lg">{{ $currentStepData['title'] }}</flux:heading>
+                        @if ($currentStepData['help_text'])
+                            <flux:text class="mt-1">{{ $currentStepData['help_text'] }}</flux:text>
+                        @endif
                     </div>
                 @endif
 
@@ -273,12 +421,15 @@ new class extends Component
 
                     @switch($question->type)
                         @case($questionType::Section)
-                            <div class="border-t border-zinc-300 dark:border-zinc-700 pt-4 mt-4">
-                                <flux:heading size="lg">{{ $question->label }}</flux:heading>
-                                @if ($question->help_text)
-                                    <flux:text class="mt-1">{{ $question->help_text }}</flux:text>
-                                @endif
-                            </div>
+                            {{-- In single-page mode, sections render as inline dividers. In multi-step they're already pulled out as step titles. --}}
+                            @if (! $isMultiStep)
+                                <div class="border-t border-zinc-300 dark:border-zinc-700 pt-4 mt-4">
+                                    <flux:heading size="lg">{{ $question->label }}</flux:heading>
+                                    @if ($question->help_text)
+                                        <flux:text class="mt-1">{{ $question->help_text }}</flux:text>
+                                    @endif
+                                </div>
+                            @endif
                             @break
 
                         @case($questionType::Description)
@@ -507,11 +658,28 @@ new class extends Component
                     <flux:text class="text-red-600 text-sm">{{ $message }}</flux:text>
                 @enderror
 
-                <div class="pt-4">
-                    <button
-                        type="submit"
-                        class="btn-primary text-white px-5 py-2.5 rounded-md font-medium"
-                    >Submit</button>
+                {{-- Navigation buttons --}}
+                <div class="pt-4 flex items-center gap-3">
+                    @if ($isMultiStep && ! $isFirstStep)
+                        <button
+                            type="button"
+                            wire:click="prevStep"
+                            class="px-5 py-2.5 rounded-md font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                        >← Back</button>
+                    @endif
+
+                    @if ($isMultiStep && ! $isLastStep)
+                        <button
+                            type="button"
+                            wire:click="nextStep"
+                            class="btn-primary text-white px-5 py-2.5 rounded-md font-medium ml-auto"
+                        >Next →</button>
+                    @else
+                        <button
+                            type="submit"
+                            class="btn-primary text-white px-5 py-2.5 rounded-md font-medium {{ $isMultiStep ? 'ml-auto' : '' }}"
+                        >Submit</button>
+                    @endif
                 </div>
             </form>
         @endif

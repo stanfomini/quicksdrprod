@@ -225,6 +225,10 @@ class SurveyForm
                         ->helperText('Primary accent color used on buttons and the progress bar.'),
                     Toggle::make('show_progress_bar')
                         ->default(true),
+                    Toggle::make('multi_step')
+                        ->label('Multi-step (paged) survey')
+                        ->default(false)
+                        ->helperText('When on, "Section divider" questions become page breaks — respondents see one section at a time with Next / Back buttons.'),
                     FileUpload::make('cover_image_path')
                         ->image()
                         ->disk('public')

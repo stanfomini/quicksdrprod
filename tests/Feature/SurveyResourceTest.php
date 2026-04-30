@@ -4,7 +4,10 @@ use App\Enums\SurveyAudience;
 use App\Enums\SurveyQuestionType;
 use App\Enums\SurveyStatus;
 use App\Filament\Resources\Surveys\Pages\CreateSurvey;
+use App\Filament\Resources\Surveys\Pages\SurveyStats;
 use App\Models\Survey;
+use App\Models\SurveyQuestion;
+use App\Models\SurveyResponse;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -106,4 +109,20 @@ test('a survey with a radio question and choices can be created', function () {
             ['value' => 'no', 'label' => 'No'],
         ],
     ]);
+});
+
+test('the stats page renders for a survey', function () {
+    $survey = Survey::factory()->create(['title' => 'Pipeline Discovery']);
+
+    SurveyQuestion::factory()->for($survey)->count(2)->sequence(
+        ['order' => 1, 'label' => 'Q1'],
+        ['order' => 2, 'label' => 'Q2'],
+    )->create();
+
+    SurveyResponse::factory()->for($survey)->completed()->count(3)->create();
+
+    Livewire::test(SurveyStats::class, ['record' => $survey->id])
+        ->assertSuccessful()
+        ->assertSee('Pipeline Discovery')
+        ->assertSee('3'); // total responses
 });

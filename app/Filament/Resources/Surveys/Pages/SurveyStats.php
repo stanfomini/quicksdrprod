@@ -4,29 +4,34 @@ namespace App\Filament\Resources\Surveys\Pages;
 
 use App\Enums\SurveyQuestionType;
 use App\Filament\Resources\Surveys\SurveyResource;
-use App\Models\Survey;
 use App\Models\SurveyAnswer;
 use App\Models\SurveyResponse;
 use Filament\Actions\Action;
+use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
 
 class SurveyStats extends Page
 {
+    use InteractsWithRecord;
+
     protected static string $resource = SurveyResource::class;
 
     protected string $view = 'filament.resources.surveys.pages.survey-stats';
 
-    public Survey $record;
-
     public function mount(int|string $record): void
     {
-        $this->record = Survey::with('questions')->findOrFail($record);
+        $this->record = $this->resolveRecord($record);
     }
 
     public function getTitle(): string|Htmlable
     {
-        return 'Stats — '.$this->record->title;
+        return 'Stats — '.$this->getRecord()->title;
+    }
+
+    public function getBreadcrumb(): string
+    {
+        return 'Stats';
     }
 
     protected function getHeaderActions(): array
@@ -36,7 +41,7 @@ class SurveyStats extends Page
                 ->label('Back to survey')
                 ->icon('heroicon-o-arrow-left')
                 ->color('gray')
-                ->url(fn () => SurveyResource::getUrl('edit', ['record' => $this->record])),
+                ->url(fn () => SurveyResource::getUrl('edit', ['record' => $this->getRecord()])),
         ];
     }
 
@@ -45,7 +50,9 @@ class SurveyStats extends Page
      */
     public function getStats(): array
     {
-        $responsesQuery = SurveyResponse::query()->where('survey_id', $this->record->id);
+        $surveyId = $this->getRecord()->id;
+
+        $responsesQuery = SurveyResponse::query()->where('survey_id', $surveyId);
 
         $total = (clone $responsesQuery)->count();
         $completed = (clone $responsesQuery)->whereNotNull('completed_at')->count();
@@ -85,7 +92,7 @@ class SurveyStats extends Page
     {
         $output = [];
 
-        foreach ($this->record->questions as $question) {
+        foreach ($this->getRecord()->questions as $question) {
             if (! in_array($question->type, [SurveyQuestionType::Radio, SurveyQuestionType::Select, SurveyQuestionType::YesNo, SurveyQuestionType::Checkbox], true)) {
                 continue;
             }

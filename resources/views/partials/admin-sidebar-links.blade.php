@@ -14,5 +14,12 @@
         >
             {{ __('Tenants') }}
         </flux:sidebar.item>
+        <flux:sidebar.item
+            icon="clipboard-document-list"
+            :href="url('/internal')"
+            target="_blank"
+        >
+            {{ __('Surveys') }}
+        </flux:sidebar.item>
     </flux:sidebar.group>
 @endif

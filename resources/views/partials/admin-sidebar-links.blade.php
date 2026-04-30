@@ -16,7 +16,7 @@
         </flux:sidebar.item>
         <flux:sidebar.item
             icon="clipboard-document-list"
-            :href="url('/internal')"
+            :href="url('/internal/surveys')"
             target="_blank"
         >
             {{ __('Surveys') }}

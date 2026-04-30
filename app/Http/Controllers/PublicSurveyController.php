@@ -10,25 +10,27 @@ use Illuminate\Http\Request;
 
 class PublicSurveyController extends Controller
 {
-    public function showBySlug(string $slug): View
+    public function showBySlug(string $slug, Request $request): View
     {
-        $survey = $this->findPublishedSurvey($slug);
+        [$survey, $isPreview] = $this->findSurvey($slug, $request);
 
         return view('pages.public-survey', [
             'survey' => $survey,
             'response' => null,
             'embed' => false,
+            'isPreview' => $isPreview,
         ]);
     }
 
-    public function embedBySlug(string $slug): View
+    public function embedBySlug(string $slug, Request $request): View
     {
-        $survey = $this->findPublishedSurvey($slug);
+        [$survey, $isPreview] = $this->findSurvey($slug, $request);
 
         return view('pages.public-survey', [
             'survey' => $survey,
             'response' => null,
             'embed' => true,
+            'isPreview' => $isPreview,
         ]);
     }
 
@@ -52,21 +54,30 @@ class PublicSurveyController extends Controller
             'survey' => $response->survey,
             'response' => $response,
             'embed' => false,
+            'isPreview' => false,
         ]);
     }
 
-    protected function findPublishedSurvey(string $slug): Survey
+    /**
+     * @return array{0: Survey, 1: bool}
+     */
+    protected function findSurvey(string $slug, Request $request): array
     {
         $survey = Survey::query()
             ->where('slug', $slug)
             ->with('questions')
             ->firstOrFail();
 
-        abort_unless(
-            $survey->status === SurveyStatus::Published,
-            404,
-        );
+        if ($survey->status === SurveyStatus::Published) {
+            return [$survey, false];
+        }
 
-        return $survey;
+        // Allow authenticated internal users to preview unpublished surveys.
+        $user = $request->user();
+        if ($user !== null && method_exists($user, 'isInternal') && $user->isInternal()) {
+            return [$survey, true];
+        }
+
+        abort(404);
     }
 }

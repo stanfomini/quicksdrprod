@@ -108,7 +108,14 @@ class SurveyForm
             ->reorderable()
             ->collapsible()
             ->cloneable()
-            ->itemLabel(fn (array $state): ?string => $state['label'] ?? null)
+            ->itemLabel(function (array $state): ?string {
+                $label = $state['label'] ?? null;
+                if (! empty($state['starts_new_step'])) {
+                    return '↳ NEW STEP — '.$label;
+                }
+
+                return $label;
+            })
             ->schema([
                 Select::make('type')
                     ->options($typeOptions)
@@ -137,6 +144,10 @@ class SurveyForm
                 Toggle::make('required')
                     ->default(false)
                     ->visible(fn (Get $get): bool => SurveyQuestionType::tryFrom((string) $get('type'))?->isAnswerable() ?? false),
+                Toggle::make('starts_new_step')
+                    ->label('Starts a new step / page')
+                    ->default(false)
+                    ->helperText('When the survey is in multi-step mode, this question begins a fresh page. Only takes effect if "Multi-step" is on in the Branding tab.'),
                 Repeater::make('options.choices')
                     ->label('Choices')
                     ->visible(fn (Get $get): bool => SurveyQuestionType::tryFrom((string) $get('type'))?->needsOptions() ?? false)

@@ -22,6 +22,7 @@ class SurveyQuestion extends Model
             'options' => 'array',
             'visible_when' => 'array',
             'required' => 'boolean',
+            'starts_new_step' => 'boolean',
             'order' => 'integer',
         ];
     }

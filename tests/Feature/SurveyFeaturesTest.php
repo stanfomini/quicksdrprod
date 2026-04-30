@@ -402,3 +402,62 @@ test('single-page mode submits in one shot regardless of sections', function () 
 
     expect(SurveyResponse::count())->toBe(1);
 });
+
+test('starts_new_step flag breaks a question into its own step', function () {
+    $survey = Survey::factory()->create(['multi_step' => true]);
+    $q1 = SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Text,
+        'label' => 'Name',
+        'order' => 1,
+    ]);
+    $q2 = SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Email,
+        'label' => 'Email',
+        'starts_new_step' => true,
+        'order' => 2,
+    ]);
+    $q3 = SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Phone,
+        'label' => 'Phone',
+        'order' => 3,
+    ]);
+
+    $component = Livewire::test('survey-form', ['survey' => $survey]);
+
+    expect($component->viewData('totalSteps'))->toBe(2);
+    expect($component->viewData('isMultiStep'))->toBeTrue();
+
+    // Advance after filling first step
+    $component->set('answers.'.$q1->id, 'Jane')->call('nextStep');
+    expect($component->get('currentStep'))->toBe(1);
+});
+
+test('starts_new_step plus section dividers can coexist', function () {
+    $survey = Survey::factory()->create(['multi_step' => true]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Q1', 'order' => 1]);
+    SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Email,
+        'label' => 'Q2',
+        'starts_new_step' => true,
+        'order' => 2,
+    ]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Section, 'label' => 'Section A', 'order' => 3]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Phone, 'label' => 'Q3', 'order' => 4]);
+
+    $component = Livewire::test('survey-form', ['survey' => $survey]);
+    expect($component->viewData('totalSteps'))->toBe(3);
+});
+
+test('starts_new_step is ignored when multi_step is off', function () {
+    $survey = Survey::factory()->create(['multi_step' => false]);
+    SurveyQuestion::factory()->for($survey)->create(['type' => SurveyQuestionType::Text, 'label' => 'Q1', 'order' => 1]);
+    SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Email,
+        'label' => 'Q2',
+        'starts_new_step' => true,
+        'order' => 2,
+    ]);
+
+    $component = Livewire::test('survey-form', ['survey' => $survey]);
+    expect($component->viewData('isMultiStep'))->toBeFalse();
+});

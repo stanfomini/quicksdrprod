@@ -24,6 +24,7 @@ class SurveyQuestionFactory extends Factory
             'help_text' => null,
             'options' => null,
             'required' => false,
+            'starts_new_step' => false,
             'order' => 0,
         ];
     }

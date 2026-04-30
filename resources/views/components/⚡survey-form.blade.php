@@ -68,8 +68,10 @@ new class extends Component
     }
 
     /**
-     * Group the survey's questions into steps based on Section dividers.
-     * Each step has a `title`, optional `help_text`, and a list of `questions`.
+     * Group the survey's questions into steps. A new step starts when:
+     *   - the question is a Section divider (label/help_text become the step heading),
+     *   - the question has starts_new_step = true,
+     *   - or it's the very first question.
      *
      * @return array<int, array{title: ?string, help_text: ?string, questions: Collection}>
      */
@@ -79,17 +81,23 @@ new class extends Component
         $current = ['title' => null, 'help_text' => null, 'questions' => collect()];
 
         foreach ($survey->questions as $question) {
-            if ($question->type === SurveyQuestionType::Section) {
+            $isSection = $question->type === SurveyQuestionType::Section;
+            $startsNewStep = (bool) ($question->starts_new_step ?? false);
+
+            if ($isSection || $startsNewStep) {
                 if ($current['questions']->isNotEmpty() || $current['title'] !== null) {
                     $steps[] = $current;
                 }
                 $current = [
-                    'title' => $question->label,
-                    'help_text' => $question->help_text,
+                    'title' => $isSection ? $question->label : null,
+                    'help_text' => $isSection ? $question->help_text : null,
                     'questions' => collect(),
                 ];
 
-                continue;
+                if ($isSection) {
+                    // Section is consumed as the step header; don't add it to the questions list.
+                    continue;
+                }
             }
 
             $current['questions']->push($question);

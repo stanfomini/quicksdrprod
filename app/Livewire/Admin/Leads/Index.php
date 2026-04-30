@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Admin\Leads;
 
+use App\Enums\LeadStage;
 use App\Models\Lead;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -22,7 +24,10 @@ class Index extends Component
     public string $linked = '';
 
     #[Url]
-    public string $sortField = 'last_seen_at';
+    public string $stage = '';
+
+    #[Url]
+    public string $sortField = 'created_at';
 
     #[Url]
     public string $sortDirection = 'desc';
@@ -33,6 +38,11 @@ class Index extends Component
     }
 
     public function updatedLinked(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedStage(): void
     {
         $this->resetPage();
     }
@@ -49,14 +59,23 @@ class Index extends Component
 
     public function clearFilters(): void
     {
-        $this->reset(['search', 'linked']);
+        $this->reset(['search', 'linked', 'stage']);
         $this->resetPage();
+    }
+
+    #[Computed]
+    public function stageOptions(): array
+    {
+        return array_map(
+            fn (LeadStage $s) => ['value' => $s->value, 'label' => $s->label()],
+            LeadStage::cases()
+        );
     }
 
     protected function query(): Builder
     {
-        $sortable = ['name', 'email', 'phone', 'company', 'last_seen_at', 'created_at'];
-        $sortField = in_array($this->sortField, $sortable, true) ? $this->sortField : 'last_seen_at';
+        $sortable = ['name', 'email', 'phone', 'company', 'stage', 'last_seen_at', 'created_at'];
+        $sortField = in_array($this->sortField, $sortable, true) ? $this->sortField : 'created_at';
         $sortDirection = $this->sortDirection === 'asc' ? 'asc' : 'desc';
 
         return Lead::query()
@@ -73,6 +92,7 @@ class Index extends Component
             })
             ->when($this->linked === 'tenant', fn (Builder $q) => $q->whereNotNull('tenant_id'))
             ->when($this->linked === 'no-tenant', fn (Builder $q) => $q->whereNull('tenant_id'))
+            ->when($this->stage !== '', fn (Builder $q) => $q->where('stage', $this->stage))
             ->orderBy($sortField, $sortDirection);
     }
 

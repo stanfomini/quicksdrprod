@@ -652,6 +652,7 @@
                 <flux:table.columns>
                     <flux:table.column>Name</flux:table.column>
                     <flux:table.column>Email</flux:table.column>
+                    <flux:table.column>Stage</flux:table.column>
                     <flux:table.column>Source</flux:table.column>
                     <flux:table.column>Responses</flux:table.column>
                     <flux:table.column>Last seen</flux:table.column>
@@ -662,6 +663,11 @@
                         <flux:table.row wire:key="linked-lead-{{ $lead->id }}">
                             <flux:table.cell>{{ $lead->name ?: '—' }}</flux:table.cell>
                             <flux:table.cell class="font-mono text-sm">{{ $lead->email ?: '—' }}</flux:table.cell>
+                            <flux:table.cell>
+                                @if ($lead->stage)
+                                    <flux:badge size="sm" :color="$lead->stage->color()">{{ $lead->stage->label() }}</flux:badge>
+                                @endif
+                            </flux:table.cell>
                             <flux:table.cell class="font-mono text-xs">{{ $lead->source ?: '—' }}</flux:table.cell>
                             <flux:table.cell>{{ $lead->responses_count }}</flux:table.cell>
                             <flux:table.cell class="text-sm text-zinc-500">{{ $lead->last_seen_at?->diffForHumans() ?? '—' }}</flux:table.cell>

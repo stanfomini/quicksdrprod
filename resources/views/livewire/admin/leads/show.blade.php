@@ -1,20 +1,19 @@
 <div class="flex flex-col gap-6 p-6">
     <div class="flex items-start justify-between gap-4">
         <div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
                 <flux:heading size="xl">{{ $lead->name ?: 'Unnamed lead' }}</flux:heading>
+                <flux:badge size="lg" :color="$lead->stage->color()">{{ $lead->stage->label() }}</flux:badge>
                 @if ($lead->tenant)
                     <flux:badge color="emerald" icon="check-badge">Converted to tenant</flux:badge>
-                @else
-                    <flux:badge color="zinc" variant="solid:outline">Lead</flux:badge>
                 @endif
             </div>
-            <flux:text class="text-zinc-500">
+            <flux:text class="text-zinc-500 mt-1">
                 @if ($lead->source)
                     Source: <span class="font-mono">{{ $lead->source }}</span> ·
                 @endif
-                Created {{ $lead->created_at->diffForHumans() }}
-                @if ($lead->last_seen_at)
+                Created {{ $lead->created_at->diffForHumans() }} ({{ $lead->ageInDays() }}d ago)
+                @if ($lead->last_seen_at && $lead->last_seen_at->ne($lead->created_at))
                     · Last seen {{ $lead->last_seen_at->diffForHumans() }}
                 @endif
             </flux:text>
@@ -22,6 +21,28 @@
         <div class="flex gap-2">
             <flux:button :href="route('admin.leads.index')" wire:navigate variant="ghost" icon="arrow-left">Back</flux:button>
             <flux:button :href="route('admin.leads.edit', $lead)" wire:navigate variant="primary" icon="pencil-square">Edit</flux:button>
+        </div>
+    </div>
+
+    {{-- Stage management --}}
+    <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6">
+        <flux:heading size="lg">Pipeline stage</flux:heading>
+        <flux:text class="text-zinc-500 mt-1">Move this lead through your sales pipeline.</flux:text>
+
+        <div class="mt-4 flex flex-wrap gap-2">
+            @foreach ($this->stageOptions as $opt)
+                @php
+                    $isCurrent = $lead->stage->value === $opt['value'];
+                    $btnClasses = $isCurrent
+                        ? 'px-3 py-1.5 rounded-md text-sm font-medium border transition bg-'.$opt['color'].'-500 text-white border-transparent shadow-sm'
+                        : 'px-3 py-1.5 rounded-md text-sm font-medium border transition bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700';
+                @endphp
+                <button
+                    type="button"
+                    wire:click="changeStage('{{ $opt['value'] }}')"
+                    class="{{ $btnClasses }}"
+                >{{ $opt['label'] }}</button>
+            @endforeach
         </div>
     </div>
 
@@ -81,28 +102,41 @@
 
     {{-- Survey responses --}}
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6">
-        <flux:heading size="lg" class="mb-4">Survey responses ({{ $responses->count() }})</flux:heading>
+        <flux:heading size="lg" class="mb-4">Survey responses ({{ $this->responses->count() }})</flux:heading>
 
-        @if ($responses->isEmpty())
+        @if ($this->responses->isEmpty())
             <flux:text class="text-zinc-500">No survey responses linked to this lead yet.</flux:text>
         @else
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>Survey</flux:table.column>
-                    <flux:table.column>Completed</flux:table.column>
+                    <flux:table.column>Public link</flux:table.column>
+                    <flux:table.column>Submitted</flux:table.column>
                     <flux:table.column>Duration</flux:table.column>
+                    <flux:table.column></flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
-                    @foreach ($responses as $response)
+                    @foreach ($this->responses as $response)
                         <flux:table.row wire:key="resp-{{ $response->id }}">
                             <flux:table.cell>
                                 <strong>{{ $response->survey->title }}</strong>
                                 <div class="text-xs text-zinc-500 font-mono">{{ $response->survey->slug }}</div>
                             </flux:table.cell>
+                            <flux:table.cell>
+                                <a href="{{ $response->survey->publicUrl() }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline font-mono truncate max-w-xs">
+                                    /s/{{ $response->survey->slug }}
+                                    <flux:icon.arrow-top-right-on-square class="w-3 h-3" />
+                                </a>
+                            </flux:table.cell>
                             <flux:table.cell>{{ $response->completed_at?->format('Y-m-d H:i') ?? '—' }}</flux:table.cell>
                             <flux:table.cell>
-                                @php($d = $response->durationSeconds())
+                                @php
+                                    $d = $response->durationSeconds();
+                                @endphp
                                 {{ $d ? intdiv($d, 60).'m '.($d % 60).'s' : '—' }}
+                            </flux:table.cell>
+                            <flux:table.cell class="text-right">
+                                <flux:button size="xs" variant="ghost" icon="eye" wire:click="viewResponse({{ $response->id }})">Answers</flux:button>
                             </flux:table.cell>
                         </flux:table.row>
                     @endforeach
@@ -110,4 +144,43 @@
             </flux:table>
         @endif
     </div>
+
+    {{-- Inline answer panel --}}
+    @if ($this->viewingResponse)
+        @php
+            $vr = $this->viewingResponse;
+            $answersByQuestionId = $vr->answers->keyBy('survey_question_id');
+            $answerableQuestions = [];
+            foreach ($vr->survey->questions as $q) {
+                if ($q->type->isAnswerable()) {
+                    $answerableQuestions[] = $q;
+                }
+            }
+        @endphp
+        <div class="rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/30 dark:bg-blue-950/20 p-6">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <flux:heading size="lg">Answers — {{ $vr->survey->title }}</flux:heading>
+                    <flux:text class="text-zinc-500">Submitted {{ $vr->completed_at?->format('Y-m-d H:i') ?? '—' }}</flux:text>
+                </div>
+                <flux:button size="sm" variant="ghost" icon="x-mark" wire:click="closeResponse">Close</flux:button>
+            </div>
+
+            <div class="mt-4 space-y-3">
+                @foreach ($answerableQuestions as $question)
+                    @php
+                        $answer = $answersByQuestionId->get($question->id);
+                        $rawValue = $answer ? ($answer->value['answer'] ?? null) : null;
+                        $display = is_array($rawValue) ? implode(', ', array_map('strval', $rawValue)) : (string) ($rawValue ?? '');
+                    @endphp
+                    <div class="border-b border-zinc-200 dark:border-zinc-800 pb-3 last:border-b-0">
+                        <div class="text-xs uppercase tracking-wide text-zinc-500">{{ $question->label }}</div>
+                        <div class="mt-1 text-sm">
+                            {!! $display === '' ? '<em class="text-zinc-400">No answer</em>' : e($display) !!}
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 </div>

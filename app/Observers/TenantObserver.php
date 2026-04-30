@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Enums\LeadStage;
 use App\Models\Lead;
 use App\Models\Tenant;
 
@@ -35,15 +36,25 @@ class TenantObserver
             return;
         }
 
-        $query = Lead::query()->where(function ($q) use ($email, $phone) {
-            if ($email !== null) {
-                $q->orWhere('email', $email);
-            }
-            if ($phone !== null) {
-                $q->orWhere('phone', $phone);
-            }
-        });
+        $leads = Lead::query()
+            ->whereNull('tenant_id')
+            ->where(function ($q) use ($email, $phone) {
+                if ($email !== null) {
+                    $q->orWhere('email', $email);
+                }
+                if ($phone !== null) {
+                    $q->orWhere('phone', $phone);
+                }
+            })
+            ->get();
 
-        $query->whereNull('tenant_id')->update(['tenant_id' => $tenant->id]);
+        foreach ($leads as $lead) {
+            $lead->tenant_id = $tenant->id;
+            // Auto-promote to Won, but never override Lost.
+            if ($lead->stage !== LeadStage::Lost) {
+                $lead->stage = LeadStage::Won;
+            }
+            $lead->save();
+        }
     }
 }

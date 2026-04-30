@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\LeadStage;
 use App\Models\Lead;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -21,8 +22,14 @@ class LeadFactory extends Factory
             'name' => $this->faker->name(),
             'company' => $this->faker->company(),
             'source' => 'survey:test',
+            'stage' => LeadStage::New,
             'last_seen_at' => now(),
         ];
+    }
+
+    public function stage(LeadStage $stage): static
+    {
+        return $this->state(fn () => ['stage' => $stage]);
     }
 
     public function withoutEmail(): static

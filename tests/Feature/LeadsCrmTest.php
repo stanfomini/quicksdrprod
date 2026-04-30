@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CrmField;
+use App\Enums\LeadStage;
 use App\Enums\SurveyQuestionType;
 use App\Events\SurveyResponseSubmitted;
 use App\Listeners\LinkResponseToLead;
@@ -184,4 +185,129 @@ test('crm_field on a question takes precedence over the type-based default', fun
     $lead = Lead::first();
     expect($lead)->not->toBeNull();
     expect($lead->phone)->toBe('+18175550123');
+});
+
+test('crm_field set to Company maps a text answer to the lead company column', function () {
+    $survey = Survey::factory()->create();
+    $emailQ = SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Email,
+        'order' => 1,
+    ]);
+    $companyQ = SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Text,
+        'label' => 'Where do you work?',
+        'crm_field' => CrmField::Company,
+        'order' => 2,
+    ]);
+
+    $response = SurveyResponse::factory()->for($survey)->completed()->create();
+    SurveyAnswer::create([
+        'survey_response_id' => $response->id,
+        'survey_question_id' => $emailQ->id,
+        'value' => ['answer' => 'biz@acme.com'],
+    ]);
+    SurveyAnswer::create([
+        'survey_response_id' => $response->id,
+        'survey_question_id' => $companyQ->id,
+        'value' => ['answer' => 'Acme Corp'],
+    ]);
+
+    (new LinkResponseToLead)->handle(new SurveyResponseSubmitted($response));
+
+    $lead = Lead::first();
+    expect($lead)->not->toBeNull();
+    expect($lead->email)->toBe('biz@acme.com');
+    expect($lead->company)->toBe('Acme Corp');
+});
+
+test('a question with crm_field unset still maps email/phone/name from question type', function () {
+    $survey = Survey::factory()->create();
+    $emailQ = SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Email,
+        'crm_field' => null,
+        'order' => 1,
+    ]);
+    $nameQ = SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Name,
+        'crm_field' => null,
+        'order' => 2,
+    ]);
+
+    $response = SurveyResponse::factory()->for($survey)->completed()->create();
+    SurveyAnswer::create([
+        'survey_response_id' => $response->id,
+        'survey_question_id' => $emailQ->id,
+        'value' => ['answer' => 'fallback@example.com'],
+    ]);
+    SurveyAnswer::create([
+        'survey_response_id' => $response->id,
+        'survey_question_id' => $nameQ->id,
+        'value' => ['answer' => 'Jane Doe'],
+    ]);
+
+    (new LinkResponseToLead)->handle(new SurveyResponseSubmitted($response));
+
+    $lead = Lead::first();
+    expect($lead->email)->toBe('fallback@example.com');
+    expect($lead->name)->toBe('Jane Doe');
+});
+
+test('a new lead defaults to the New stage', function () {
+    $lead = Lead::create([
+        'email' => 'fresh@example.com',
+    ]);
+
+    expect($lead->stage)->toBe(LeadStage::New);
+});
+
+test('linkToTenantIfPossible promotes the lead to Won', function () {
+    $tenant = Tenant::factory()->create(['admin_email' => 'won@example.com']);
+    $lead = Lead::factory()->stage(LeadStage::Qualified)->create([
+        'email' => 'won@example.com',
+        'tenant_id' => null,
+    ]);
+
+    $lead->linkToTenantIfPossible();
+
+    expect($lead->fresh()->tenant_id)->toBe($tenant->id);
+    expect($lead->fresh()->stage)->toBe(LeadStage::Won);
+});
+
+test('linking does not override a Lost stage', function () {
+    $tenant = Tenant::factory()->create(['admin_email' => 'lost@example.com']);
+    $lead = Lead::factory()->stage(LeadStage::Lost)->create([
+        'email' => 'lost@example.com',
+        'tenant_id' => null,
+    ]);
+
+    $lead->linkToTenantIfPossible();
+
+    expect($lead->fresh()->tenant_id)->toBe($tenant->id);
+    expect($lead->fresh()->stage)->toBe(LeadStage::Lost);
+});
+
+test('TenantObserver linking promotes leads to Won', function () {
+    $lead = Lead::factory()->stage(LeadStage::Contacted)->create([
+        'email' => 'observed@example.com',
+        'tenant_id' => null,
+    ]);
+
+    Tenant::factory()->create(['admin_email' => 'observed@example.com']);
+
+    expect($lead->fresh()->stage)->toBe(LeadStage::Won);
+});
+
+test('setStage updates the stage and persists it', function () {
+    $lead = Lead::factory()->create();
+    expect($lead->stage)->toBe(LeadStage::New);
+
+    $lead->setStage(LeadStage::Contacted);
+
+    expect($lead->fresh()->stage)->toBe(LeadStage::Contacted);
+});
+
+test('ageInDays returns the difference from created_at to now', function () {
+    $lead = Lead::factory()->create(['created_at' => now()->subDays(5)]);
+    expect($lead->ageInDays())->toBeGreaterThanOrEqual(4);
+    expect($lead->ageInDays())->toBeLessThanOrEqual(5);
 });

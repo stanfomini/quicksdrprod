@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\LeadStage;
 use Database\Factories\LeadFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,11 +17,19 @@ class Lead extends Model
 
     protected $guarded = [];
 
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'stage' => 'new',
+    ];
+
     protected function casts(): array
     {
         return [
             'last_seen_at' => 'datetime',
             'custom_fields' => 'array',
+            'stage' => LeadStage::class,
         ];
     }
 
@@ -112,8 +121,25 @@ class Lead extends Model
 
         if ($this->tenant_id !== $tenant->id) {
             $this->tenant_id = $tenant->id;
+            // Auto-promote to Won when a lead converts. Don't override Lost.
+            if (! in_array($this->stage, [LeadStage::Won, LeadStage::Lost], true)) {
+                $this->stage = LeadStage::Won;
+            }
             $this->save();
         }
+    }
+
+    public function setStage(LeadStage $stage): void
+    {
+        if ($this->stage !== $stage) {
+            $this->stage = $stage;
+            $this->save();
+        }
+    }
+
+    public function ageInDays(): int
+    {
+        return (int) $this->created_at?->diffInDays(now(), true);
     }
 
     public static function normalizeEmail(?string $raw): ?string

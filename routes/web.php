@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AdminSignupController;
+use App\Http\Controllers\PublicSurveyController;
 use App\Http\Controllers\SignupSuccessController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\TenantBillingPortalController;
@@ -11,6 +12,7 @@ use App\Livewire\Admin\Tenants\Edit as AdminTenantsEdit;
 use App\Livewire\Admin\Tenants\Index as AdminTenantsIndex;
 use App\Livewire\Admin\Tenants\Show as AdminTenantsShow;
 use App\Livewire\ContactSales;
+use App\Livewire\EmailOtp;
 use App\Livewire\Signup;
 use App\Livewire\Tenant\Export as TenantExport;
 use App\Models\Tenant;
@@ -27,6 +29,10 @@ Route::view('/terms', 'terms')->name('terms');
 
 Route::get('/admin-signup/{token}', [AdminSignupController::class, 'show'])->name('admin-signup.show');
 Route::post('/admin-signup/{token}', [AdminSignupController::class, 'store'])->name('admin-signup.store');
+
+Route::get('/s/{token}', PublicSurveyController::class)
+    ->where('token', '[A-Za-z0-9]{40}')
+    ->name('public-survey.show');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('dashboard', '/claimstaker/dashboard')->name('dashboard');
@@ -70,7 +76,7 @@ Route::middleware(['auth'])->group(function () {
 // Access to this route is granted by the RequireEmailOtp middleware
 // (which whitelists /email-code to avoid a redirect loop).
 Route::middleware(['auth'])->group(function () {
-    Route::get('/email-code', App\Livewire\EmailOtp::class)->name('email-otp');
+    Route::get('/email-code', EmailOtp::class)->name('email-otp');
 });
 
 Route::middleware([EnsureOrchestrator::class, 'auth', EnsureInternalUser::class])

@@ -264,3 +264,32 @@ test('survey with audience can be created via factory', function () {
 
     expect($survey->audience)->toBe(SurveyAudience::Tenant);
 });
+
+test('progress count updates as answers come in', function () {
+    $survey = Survey::factory()->create();
+    $q1 = SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Text,
+        'label' => 'Name',
+        'order' => 1,
+    ]);
+    $q2 = SurveyQuestion::factory()->for($survey)->create([
+        'type' => SurveyQuestionType::Email,
+        'label' => 'Email',
+        'order' => 2,
+    ]);
+
+    $component = Livewire::test('survey-form', ['survey' => $survey]);
+
+    // Before any answers are filled, the answered count should be 0.
+    $component->call('$refresh');
+    $payload = $component->viewData('answeredCount');
+    expect($payload)->toBe(0);
+
+    // After setting q1, answered count should be 1.
+    $component->set('answers.'.$q1->id, 'Acme');
+    expect($component->viewData('answeredCount'))->toBe(1);
+
+    // After setting q2 too, answered count should be 2.
+    $component->set('answers.'.$q2->id, 'a@b.com');
+    expect($component->viewData('answeredCount'))->toBe(2);
+});

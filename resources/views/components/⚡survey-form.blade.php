@@ -300,7 +300,7 @@ new class extends Component
                                             :description="$question->help_text"
                                             :placeholder="$question->placeholder ?: $question->type->defaultPlaceholder()"
                                             :required="$question->required"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         />
                                         @break
 
@@ -311,7 +311,7 @@ new class extends Component
                                             :description="$question->help_text"
                                             :placeholder="$question->placeholder ?: $question->type->defaultPlaceholder()"
                                             :required="$question->required"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         />
                                         @break
 
@@ -322,7 +322,7 @@ new class extends Component
                                             :description="$question->help_text"
                                             :placeholder="$question->placeholder ?: $question->type->defaultPlaceholder()"
                                             :required="$question->required"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         />
                                         @break
 
@@ -333,7 +333,7 @@ new class extends Component
                                             :description="$question->help_text"
                                             :placeholder="$question->placeholder ?: $question->type->defaultPlaceholder()"
                                             :required="$question->required"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         />
                                         @break
 
@@ -344,7 +344,7 @@ new class extends Component
                                             :description="$question->help_text"
                                             :placeholder="$question->placeholder"
                                             :required="$question->required"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         />
                                         @break
 
@@ -354,7 +354,7 @@ new class extends Component
                                             :description="$question->help_text"
                                             :placeholder="$question->placeholder"
                                             :required="$question->required"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                             rows="4"
                                         />
                                         @break
@@ -365,7 +365,7 @@ new class extends Component
                                             :label="$question->label"
                                             :description="$question->help_text"
                                             :required="$question->required"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         />
                                         @break
 
@@ -375,7 +375,7 @@ new class extends Component
                                             :label="$question->label"
                                             :description="$question->help_text"
                                             :required="$question->required"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         />
                                         @break
 
@@ -385,7 +385,7 @@ new class extends Component
                                             :label="$question->label"
                                             :description="$question->help_text"
                                             :required="$question->required"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         />
                                         @break
 
@@ -393,7 +393,7 @@ new class extends Component
                                         <flux:radio.group
                                             :label="$question->label"
                                             :description="$question->help_text"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         >
                                             @foreach ($question->options['choices'] ?? [] as $choice)
                                                 <flux:radio :value="$choice['value']" :label="$choice['label']" />
@@ -405,7 +405,7 @@ new class extends Component
                                         <flux:radio.group
                                             :label="$question->label"
                                             :description="$question->help_text"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         >
                                             <flux:radio value="yes" label="Yes" />
                                             <flux:radio value="no" label="No" />
@@ -416,7 +416,7 @@ new class extends Component
                                         <flux:checkbox.group
                                             :label="$question->label"
                                             :description="$question->help_text"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                         >
                                             @foreach ($question->options['choices'] ?? [] as $choice)
                                                 <flux:checkbox :value="$choice['value']" :label="$choice['label']" />
@@ -429,7 +429,7 @@ new class extends Component
                                             :label="$question->label"
                                             :description="$question->help_text"
                                             :required="$question->required"
-                                            wire:model="{{ $key }}"
+                                            wire:model.live.debounce.400ms="{{ $key }}"
                                             placeholder="Choose..."
                                         >
                                             @foreach ($question->options['choices'] ?? [] as $choice)

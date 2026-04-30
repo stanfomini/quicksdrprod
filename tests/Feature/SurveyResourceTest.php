@@ -2,6 +2,7 @@
 
 use App\Enums\SurveyAudience;
 use App\Enums\SurveyQuestionType;
+use App\Enums\SurveyStatus;
 use App\Filament\Resources\Surveys\Pages\CreateSurvey;
 use App\Models\Survey;
 use App\Models\User;
@@ -25,6 +26,7 @@ test('a survey with no questions can be created', function () {
             'title' => 'Sales Discovery',
             'slug' => 'sales-discovery',
             'audience' => SurveyAudience::Prospect->value,
+            'status' => SurveyStatus::Draft->value,
             'description' => 'Initial qualification survey.',
             'questions' => [],
         ])
@@ -44,6 +46,7 @@ test('a survey with a text question can be created', function () {
             'title' => 'Quick QA',
             'slug' => 'quick-qa',
             'audience' => SurveyAudience::Agent->value,
+            'status' => SurveyStatus::Draft->value,
             'description' => null,
             'published_at' => null,
             'questions' => [
@@ -73,6 +76,7 @@ test('a survey with a radio question and choices can be created', function () {
             'title' => 'Lead survey',
             'slug' => 'lead-survey',
             'audience' => SurveyAudience::Prospect->value,
+            'status' => SurveyStatus::Draft->value,
             'description' => null,
             'published_at' => null,
             'questions' => [

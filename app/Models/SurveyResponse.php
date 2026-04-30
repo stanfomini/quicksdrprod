@@ -46,6 +46,15 @@ class SurveyResponse extends Model
         return $this->completed_at !== null;
     }
 
+    public function durationSeconds(): ?int
+    {
+        if (! $this->started_at || ! $this->completed_at) {
+            return null;
+        }
+
+        return (int) $this->completed_at->diffInSeconds($this->started_at, true);
+    }
+
     public static function generateToken(): string
     {
         return Str::random(40);

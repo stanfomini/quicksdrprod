@@ -30,9 +30,17 @@ Route::view('/terms', 'terms')->name('terms');
 Route::get('/admin-signup/{token}', [AdminSignupController::class, 'show'])->name('admin-signup.show');
 Route::post('/admin-signup/{token}', [AdminSignupController::class, 'store'])->name('admin-signup.store');
 
-Route::get('/s/{token}', PublicSurveyController::class)
-    ->where('token', '[A-Za-z0-9]{40}')
+Route::get('/s/{slug}', [PublicSurveyController::class, 'showBySlug'])
+    ->where('slug', '[a-z0-9-]+')
     ->name('public-survey.show');
+
+Route::get('/embed/{slug}', [PublicSurveyController::class, 'embedBySlug'])
+    ->where('slug', '[a-z0-9-]+')
+    ->name('public-survey.embed');
+
+Route::get('/r/{token}', [PublicSurveyController::class, 'showByToken'])
+    ->where('token', '[A-Za-z0-9]{40}')
+    ->name('public-survey.token');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('dashboard', '/claimstaker/dashboard')->name('dashboard');

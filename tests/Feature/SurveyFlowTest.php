@@ -9,7 +9,7 @@ use App\Models\SurveyResponse;
 use Livewire\Livewire;
 
 test('public survey route 404s on unknown token', function () {
-    $this->get('/s/'.str_repeat('z', 40))->assertNotFound();
+    $this->get('/r/'.str_repeat('z', 40))->assertNotFound();
 });
 
 test('public survey route renders the survey for a valid token', function () {
@@ -24,7 +24,7 @@ test('public survey route renders the survey for a valid token', function () {
 
     $response = SurveyResponse::factory()->for($survey)->create();
 
-    $this->get('/s/'.$response->token)
+    $this->get('/r/'.$response->token)
         ->assertOk()
         ->assertSee('Discovery call')
         ->assertSee('What is your timeline?');
@@ -87,7 +87,7 @@ test('completed response shows the thank-you state on revisit', function () {
     SurveyQuestion::factory()->for($survey)->create(['order' => 1]);
     $response = SurveyResponse::factory()->for($survey)->completed()->create();
 
-    $this->get('/s/'.$response->token)
+    $this->get('/r/'.$response->token)
         ->assertOk()
         ->assertSee('Thanks!');
 });

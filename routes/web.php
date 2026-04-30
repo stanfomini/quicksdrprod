@@ -7,6 +7,10 @@ use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\TenantBillingPortalController;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureOrchestrator;
+use App\Livewire\Admin\Leads\Create as AdminLeadsCreate;
+use App\Livewire\Admin\Leads\Edit as AdminLeadsEdit;
+use App\Livewire\Admin\Leads\Index as AdminLeadsIndex;
+use App\Livewire\Admin\Leads\Show as AdminLeadsShow;
 use App\Livewire\Admin\Tenants\Create as AdminTenantsCreate;
 use App\Livewire\Admin\Tenants\Edit as AdminTenantsEdit;
 use App\Livewire\Admin\Tenants\Index as AdminTenantsIndex;
@@ -95,4 +99,14 @@ Route::middleware([EnsureOrchestrator::class, 'auth', EnsureInternalUser::class]
         Route::get('/create', AdminTenantsCreate::class)->name('create');
         Route::get('/{tenant}', AdminTenantsShow::class)->name('show');
         Route::get('/{tenant}/edit', AdminTenantsEdit::class)->name('edit');
+    });
+
+Route::middleware([EnsureOrchestrator::class, 'auth', EnsureInternalUser::class])
+    ->prefix('admin/leads')
+    ->name('admin.leads.')
+    ->group(function () {
+        Route::get('/', AdminLeadsIndex::class)->name('index');
+        Route::get('/create', AdminLeadsCreate::class)->name('create');
+        Route::get('/{lead}', AdminLeadsShow::class)->name('show');
+        Route::get('/{lead}/edit', AdminLeadsEdit::class)->name('edit');
     });

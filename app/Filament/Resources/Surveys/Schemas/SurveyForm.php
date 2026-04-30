@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Surveys\Schemas;
 
+use App\Enums\CrmField;
 use App\Enums\SurveyAudience;
 use App\Enums\SurveyQuestionType;
 use App\Enums\SurveyStatus;
@@ -148,6 +149,12 @@ class SurveyForm
                     ->label('Starts a new step / page')
                     ->default(false)
                     ->helperText('When the survey is in multi-step mode, this question begins a fresh page. Only takes effect if "Multi-step" is on in the Branding tab.'),
+                Select::make('crm_field')
+                    ->label('Map to CRM field')
+                    ->options(collect(CrmField::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
+                    ->default(CrmField::None->value)
+                    ->visible(fn (Get $get): bool => SurveyQuestionType::tryFrom((string) $get('type'))?->isAnswerable() ?? false)
+                    ->helperText('Routes this answer into the matching Lead field when the response is submitted.'),
                 Repeater::make('options.choices')
                     ->label('Choices')
                     ->visible(fn (Get $get): bool => SurveyQuestionType::tryFrom((string) $get('type'))?->needsOptions() ?? false)

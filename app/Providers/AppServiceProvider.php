@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Tenant;
+use App\Observers\TenantObserver;
 use App\Services\Provisioning\CloudflareClient;
 use App\Services\Provisioning\FakeCloudflareClient;
 use App\Services\Provisioning\FakeForgeClient;
@@ -31,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        Tenant::observe(TenantObserver::class);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CrmField;
 use App\Enums\SurveyQuestionType;
 use Database\Factories\SurveyQuestionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +20,7 @@ class SurveyQuestion extends Model
     {
         return [
             'type' => SurveyQuestionType::class,
+            'crm_field' => CrmField::class,
             'options' => 'array',
             'visible_when' => 'array',
             'required' => 'boolean',

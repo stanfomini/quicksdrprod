@@ -6,6 +6,7 @@ use App\Enums\TenantStatus;
 use App\Enums\TenantTier;
 use App\Jobs\DestroyTenantServer;
 use App\Jobs\ProvisionTenantServer;
+use App\Models\Lead;
 use App\Models\Tenant;
 use App\Services\Provisioning\ForgeClient;
 use App\Services\Provisioning\StripeCheckout;
@@ -514,6 +515,21 @@ class Show extends Component
             ->get()
             ->reverse()
             ->values();
+    }
+
+    /**
+     * Leads that have been linked to this tenant (typically via the
+     * TenantObserver matching admin_email / admin_phone). Read-only
+     * partial appended at the bottom of the Tenant Show page.
+     */
+    #[Computed]
+    public function linkedLeads()
+    {
+        return Lead::query()
+            ->where('tenant_id', $this->tenant->id)
+            ->withCount('responses')
+            ->orderByDesc('last_seen_at')
+            ->get();
     }
 
     public function render()

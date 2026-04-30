@@ -639,4 +639,39 @@
             </flux:table>
         @endif
     </flux:card>
+
+    {{-- Read-only Linked Leads partial — added by the CRM feature. --}}
+    @if ($this->linkedLeads->isNotEmpty())
+        <flux:card>
+            <flux:heading size="lg">Linked leads ({{ $this->linkedLeads->count() }})</flux:heading>
+            <flux:text class="text-zinc-500 mt-1">
+                Leads from surveys whose email or phone matched this tenant's admin contact.
+            </flux:text>
+
+            <flux:table class="mt-4">
+                <flux:table.columns>
+                    <flux:table.column>Name</flux:table.column>
+                    <flux:table.column>Email</flux:table.column>
+                    <flux:table.column>Source</flux:table.column>
+                    <flux:table.column>Responses</flux:table.column>
+                    <flux:table.column>Last seen</flux:table.column>
+                    <flux:table.column></flux:table.column>
+                </flux:table.columns>
+                <flux:table.rows>
+                    @foreach ($this->linkedLeads as $lead)
+                        <flux:table.row wire:key="linked-lead-{{ $lead->id }}">
+                            <flux:table.cell>{{ $lead->name ?: '—' }}</flux:table.cell>
+                            <flux:table.cell class="font-mono text-sm">{{ $lead->email ?: '—' }}</flux:table.cell>
+                            <flux:table.cell class="font-mono text-xs">{{ $lead->source ?: '—' }}</flux:table.cell>
+                            <flux:table.cell>{{ $lead->responses_count }}</flux:table.cell>
+                            <flux:table.cell class="text-sm text-zinc-500">{{ $lead->last_seen_at?->diffForHumans() ?? '—' }}</flux:table.cell>
+                            <flux:table.cell class="text-right">
+                                <flux:button size="xs" variant="ghost" :href="route('admin.leads.show', $lead)" wire:navigate>Open</flux:button>
+                            </flux:table.cell>
+                        </flux:table.row>
+                    @endforeach
+                </flux:table.rows>
+            </flux:table>
+        </flux:card>
+    @endif
 </div>

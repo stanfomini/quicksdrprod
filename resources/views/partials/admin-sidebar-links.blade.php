@@ -15,6 +15,14 @@
             {{ __('Tenants') }}
         </flux:sidebar.item>
         <flux:sidebar.item
+            icon="user-group"
+            :href="route('admin.leads.index')"
+            :current="request()->routeIs('admin.leads.*')"
+            wire:navigate
+        >
+            {{ __('Leads') }}
+        </flux:sidebar.item>
+        <flux:sidebar.item
             icon="clipboard-document-list"
             :href="url('/internal/surveys')"
             target="_blank"

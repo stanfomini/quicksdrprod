@@ -31,6 +31,11 @@ class SurveyResponse extends Model
         return $this->belongsTo(Survey::class);
     }
 
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
+    }
+
     public function respondent(): MorphTo
     {
         return $this->morphTo();

@@ -10,6 +10,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -55,6 +56,45 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->renderHook(
+                PanelsRenderHook::BODY_START,
+                fn (): string => request()->boolean('embed') ? self::embedChromeOverrides() : '',
+            );
+    }
+
+    /**
+     * CSS injected when a Filament panel page is loaded with ?embed=1 — hides
+     * the panel's own sidebar/topbar/breadcrumbs so the page can be iframed
+     * inside the main app's Flux sidebar without two layers of chrome. Also
+     * tells the embedded form to post a 'survey.saved' message up to the parent
+     * window after a successful save so the wrapper can show a toast.
+     */
+    protected static function embedChromeOverrides(): string
+    {
+        return <<<'HTML'
+            <style>
+                .fi-sidebar,
+                .fi-topbar,
+                .fi-page-header-breadcrumbs { display: none !important; }
+                .fi-main, .fi-main-ctn {
+                    margin: 0 !important;
+                    padding-left: 1rem !important;
+                    padding-right: 1rem !important;
+                    max-width: none !important;
+                }
+                body { background: transparent !important; }
+            </style>
+            <script>
+                (function () {
+                    document.addEventListener('livewire:initialized', function () {
+                        if (! window.Livewire) return;
+                        window.Livewire.on('saved', function () {
+                            try { window.parent.postMessage({ type: 'survey.saved' }, '*'); } catch (e) {}
+                        });
+                    });
+                })();
+            </script>
+            HTML;
     }
 }

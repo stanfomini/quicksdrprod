@@ -11,6 +11,11 @@ use App\Livewire\Admin\Leads\Create as AdminLeadsCreate;
 use App\Livewire\Admin\Leads\Edit as AdminLeadsEdit;
 use App\Livewire\Admin\Leads\Index as AdminLeadsIndex;
 use App\Livewire\Admin\Leads\Show as AdminLeadsShow;
+use App\Livewire\Admin\Surveys\Create as AdminSurveysCreate;
+use App\Livewire\Admin\Surveys\Edit as AdminSurveysEdit;
+use App\Livewire\Admin\Surveys\Index as AdminSurveysIndex;
+use App\Livewire\Admin\Surveys\Responses as AdminSurveysResponses;
+use App\Livewire\Admin\Surveys\Show as AdminSurveysShow;
 use App\Livewire\Admin\Tenants\Create as AdminTenantsCreate;
 use App\Livewire\Admin\Tenants\Edit as AdminTenantsEdit;
 use App\Livewire\Admin\Tenants\Index as AdminTenantsIndex;
@@ -109,4 +114,15 @@ Route::middleware([EnsureOrchestrator::class, 'auth', EnsureInternalUser::class]
         Route::get('/create', AdminLeadsCreate::class)->name('create');
         Route::get('/{lead}', AdminLeadsShow::class)->name('show');
         Route::get('/{lead}/edit', AdminLeadsEdit::class)->name('edit');
+    });
+
+Route::middleware([EnsureOrchestrator::class, 'auth', EnsureInternalUser::class])
+    ->prefix('admin/surveys')
+    ->name('admin.surveys.')
+    ->group(function () {
+        Route::get('/', AdminSurveysIndex::class)->name('index');
+        Route::get('/create', AdminSurveysCreate::class)->name('create');
+        Route::get('/{survey}', AdminSurveysShow::class)->name('show');
+        Route::get('/{survey}/responses', AdminSurveysResponses::class)->name('responses');
+        Route::get('/{survey}/edit', AdminSurveysEdit::class)->name('edit');
     });

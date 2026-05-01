@@ -24,8 +24,9 @@
         </flux:sidebar.item>
         <flux:sidebar.item
             icon="clipboard-document-list"
-            :href="url('/internal/surveys')"
-            target="_blank"
+            :href="route('admin.surveys.index')"
+            :current="request()->routeIs('admin.surveys.*')"
+            wire:navigate
         >
             {{ __('Surveys') }}
         </flux:sidebar.item>

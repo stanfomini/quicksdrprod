@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Surveys\RelationManagers;
 
 use App\Models\Survey;
 use App\Models\SurveyResponse;
+use App\Services\SurveyCsvExporter;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -124,51 +125,7 @@ class ResponsesRelationManager extends RelationManager
     {
         /** @var Survey $survey */
         $survey = $this->getOwnerRecord();
-        $survey->loadMissing('questions');
 
-        $filename = 'survey-'.$survey->slug.'-responses.csv';
-
-        return response()->streamDownload(function () use ($survey): void {
-            $handle = fopen('php://output', 'w');
-
-            $headers = ['response_id', 'email', 'started_at', 'completed_at', 'duration_seconds'];
-            foreach ($survey->questions as $question) {
-                if (! $question->type->isAnswerable()) {
-                    continue;
-                }
-                $headers[] = 'q'.$question->id.': '.$question->label;
-            }
-            fputcsv($handle, $headers);
-
-            SurveyResponse::query()
-                ->with(['answers'])
-                ->where('survey_id', $survey->id)
-                ->orderBy('id')
-                ->chunk(100, function ($responses) use ($handle, $survey): void {
-                    foreach ($responses as $response) {
-                        $row = [
-                            $response->id,
-                            $response->email,
-                            optional($response->started_at)->toIso8601String(),
-                            optional($response->completed_at)->toIso8601String(),
-                            $response->durationSeconds(),
-                        ];
-
-                        $answers = $response->answers->keyBy('survey_question_id');
-
-                        foreach ($survey->questions as $question) {
-                            if (! $question->type->isAnswerable()) {
-                                continue;
-                            }
-                            $value = $answers->get($question->id)?->value['answer'] ?? null;
-                            $row[] = is_array($value) ? implode('|', array_map('strval', $value)) : (string) ($value ?? '');
-                        }
-
-                        fputcsv($handle, $row);
-                    }
-                });
-
-            fclose($handle);
-        }, $filename, ['Content-Type' => 'text/csv']);
+        return app(SurveyCsvExporter::class)->streamDownload($survey);
     }
 }
